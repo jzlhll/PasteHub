@@ -1,7 +1,5 @@
 # PasteHub
 
-## 目前已经Testflight公测 https://testflight.apple.com/join/w3yUz2TB 欢迎测试
-
 PasteHub 是一个 macOS 状态栏剪贴板工具：自动记录复制内容，通过浮动面板快速检索，并支持一键回填到原应用输入框。
 
 ![App截图](Images/screenshot-20260318-094525.png)
@@ -116,11 +114,3 @@ PasteHub/
 ## License
 
 MIT
-
-## 特别鸣谢
-
-<div align="left">
-  <a href="https://www.coolapk.com" target="_blank">
-    <img src="Images/coolapklogo.png" alt="Coolapk" width="150"/>
-  </a>
-</div>

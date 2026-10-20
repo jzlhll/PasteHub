@@ -17,7 +17,7 @@ final class FloatingPanel: NSPanel, NSWindowDelegate {
     private static let quickSelectKeys: [Character] = Array("1234567890abcdefghijklmnopqrstuvwxyz")
     var onDidHide: (() -> Void)?
     var statusButtonProvider: (() -> NSStatusBarButton?)?
-    private let topBottomPanelHeight: CGFloat = 320
+    private let topBottomPanelHeight: CGFloat = 288
     private let sidePanelWidth: CGFloat = 520
     private let compactPanelWidth: CGFloat = CompactPanelLayout.width
     private let compactPanelMargin: CGFloat = CompactPanelLayout.margin

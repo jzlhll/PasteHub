@@ -1198,11 +1198,14 @@ struct ClipboardListView: View {
             } else {
                 filterChips
             }
-            statusBadge
-            if !isSnippetMode {
-                clearButton
+            HStack(spacing: 8) {
+                statusBadge
+                if !isSnippetMode {
+                    clearButton
+                }
+                settingsButton
             }
-            settingsButton
+            .fixedSize(horizontal: true, vertical: false)
         }
     }
 
@@ -1353,50 +1356,52 @@ struct ClipboardListView: View {
     }
 
     private var horizontalWaterfallContent: some View {
-        HorizontalWheelScrollView(
-            indicatorBottomInset: horizontalScrollerGap,
-            targetVisibleRangeX: horizontalHistoryVisibleRangeX,
-            onVisibleRangeChange: { rangeX in
-                if horizontalHistoryViewportRangeX != rangeX {
-                    horizontalHistoryViewportRangeX = rangeX
-                }
-            },
-            onUserScrollIntervention: {
-                if selectedHistoryItemID != nil {
-                    selectedHistoryItemID = nil
-                }
-            }
-        ) {
-            LazyHStack(alignment: .top, spacing: 8) {
-                ForEach(filteredItems) { item in
-                    ClipboardCard(
-                        item: item,
-                        onPrimaryAction: {
-                            selectedHistoryItemID = item.id
-                            activateClipboardItem(item)
-                        },
-                        onCopy: { store.copyToClipboard(item) },
-                        onDelete: { store.remove(item) },
-                        onManageTags: { tagEditorItem = item },
-                        onSaveAsSnippet: { quickSaveAsSnippet(item) },
-                        onTokenSelect: { tokenSelectionItem = item },
-                        preferredWidth: horizontalCardWidth,
-                        preferredHeight: horizontalCardHeight,
-                        compactStyle: true,
-                        isSelected: selectedHistoryItemID == item.id,
-                        quickShortcutLabel: historyQuickLabelsByID[item.id]
-                    )
-                    .onAppear {
-                        trackHistoryVisibility(item.id, isVisible: true)
+        GeometryReader { geometry in
+            HorizontalWheelScrollView(
+                indicatorBottomInset: horizontalScrollerGap,
+                targetVisibleRangeX: horizontalHistoryVisibleRangeX,
+                onVisibleRangeChange: { rangeX in
+                    if horizontalHistoryViewportRangeX != rangeX {
+                        horizontalHistoryViewportRangeX = rangeX
                     }
-                    .onDisappear {
-                        trackHistoryVisibility(item.id, isVisible: false)
+                },
+                onUserScrollIntervention: {
+                    if selectedHistoryItemID != nil {
+                        selectedHistoryItemID = nil
                     }
                 }
+            ) {
+                LazyHStack(alignment: .top, spacing: 8) {
+                    ForEach(filteredItems) { item in
+                        ClipboardCard(
+                            item: item,
+                            onPrimaryAction: {
+                                selectedHistoryItemID = item.id
+                                activateClipboardItem(item)
+                            },
+                            onCopy: { store.copyToClipboard(item) },
+                            onDelete: { store.remove(item) },
+                            onManageTags: { tagEditorItem = item },
+                            onSaveAsSnippet: { quickSaveAsSnippet(item) },
+                            onTokenSelect: { tokenSelectionItem = item },
+                            preferredWidth: horizontalCardWidth,
+                            preferredHeight: geometry.size.height - horizontalScrollerGap - 4,
+                            compactStyle: true,
+                            isSelected: selectedHistoryItemID == item.id,
+                            quickShortcutLabel: historyQuickLabelsByID[item.id]
+                        )
+                        .onAppear {
+                            trackHistoryVisibility(item.id, isVisible: true)
+                        }
+                        .onDisappear {
+                            trackHistoryVisibility(item.id, isVisible: false)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
             }
-            .padding(.vertical, 2)
         }
-        .frame(height: horizontalHistoryContentHeight)
+        .frame(minHeight: horizontalHistoryContentHeight, maxHeight: .infinity)
     }
 
     private var verticalSnippetContent: some View {
@@ -1444,48 +1449,50 @@ struct ClipboardListView: View {
     }
 
     private var horizontalSnippetContent: some View {
-        HorizontalWheelScrollView(
-            indicatorBottomInset: horizontalScrollerGap,
-            targetVisibleRangeX: horizontalSnippetVisibleRangeX,
-            onVisibleRangeChange: { rangeX in
-                if horizontalSnippetViewportRangeX != rangeX {
-                    horizontalSnippetViewportRangeX = rangeX
-                }
-            },
-            onUserScrollIntervention: {
-                if selectedSnippetItemID != nil {
-                    selectedSnippetItemID = nil
-                }
-            }
-        ) {
-            LazyHStack(alignment: .top, spacing: 8) {
-                ForEach(filteredSnippets) { snippet in
-                    SnippetCard(
-                        snippet: snippet,
-                        onPrimaryAction: {
-                            selectedSnippetItemID = snippet.id
-                            activateSnippet(snippet)
-                        },
-                        onCopy: { store.copySnippetToClipboard(snippet) },
-                        onEdit: { beginEditSnippet(snippet) },
-                        onDelete: { store.removeSnippet(snippet) },
-                        preferredWidth: horizontalSnippetWidth,
-                        preferredHeight: horizontalSnippetHeight,
-                        compactStyle: true,
-                        isSelected: selectedSnippetItemID == snippet.id,
-                        quickShortcutLabel: snippetQuickLabelsByID[snippet.id]
-                    )
-                    .onAppear {
-                        trackSnippetVisibility(snippet.id, isVisible: true)
+        GeometryReader { geometry in
+            HorizontalWheelScrollView(
+                indicatorBottomInset: horizontalScrollerGap,
+                targetVisibleRangeX: horizontalSnippetVisibleRangeX,
+                onVisibleRangeChange: { rangeX in
+                    if horizontalSnippetViewportRangeX != rangeX {
+                        horizontalSnippetViewportRangeX = rangeX
                     }
-                    .onDisappear {
-                        trackSnippetVisibility(snippet.id, isVisible: false)
+                },
+                onUserScrollIntervention: {
+                    if selectedSnippetItemID != nil {
+                        selectedSnippetItemID = nil
                     }
                 }
+            ) {
+                LazyHStack(alignment: .top, spacing: 8) {
+                    ForEach(filteredSnippets) { snippet in
+                        SnippetCard(
+                            snippet: snippet,
+                            onPrimaryAction: {
+                                selectedSnippetItemID = snippet.id
+                                activateSnippet(snippet)
+                            },
+                            onCopy: { store.copySnippetToClipboard(snippet) },
+                            onEdit: { beginEditSnippet(snippet) },
+                            onDelete: { store.removeSnippet(snippet) },
+                            preferredWidth: horizontalSnippetWidth,
+                            preferredHeight: geometry.size.height - horizontalScrollerGap - 4,
+                            compactStyle: true,
+                            isSelected: selectedSnippetItemID == snippet.id,
+                            quickShortcutLabel: snippetQuickLabelsByID[snippet.id]
+                        )
+                        .onAppear {
+                            trackSnippetVisibility(snippet.id, isVisible: true)
+                        }
+                        .onDisappear {
+                            trackSnippetVisibility(snippet.id, isVisible: false)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
             }
-            .padding(.vertical, 2)
         }
-        .frame(height: horizontalSnippetContentHeight)
+        .frame(minHeight: horizontalSnippetContentHeight, maxHeight: .infinity)
     }
 
     private func rebuildWaterfallCaches() {
@@ -1562,28 +1569,34 @@ struct ClipboardListView: View {
     }
 
     private var filterChips: some View {
-        HStack(spacing: 8) {
-            ForEach(ClipboardFilter.allCases) { filter in
-                Button {
-                    selectedFilter = filter
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: filter.icon)
-                            .font(.system(size: 12, weight: .semibold))
-                        Text(filter.title)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(ClipboardFilter.allCases) { filter in
+                    Button {
+                        selectedFilter = filter
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: filter.icon)
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(filter.title)
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundStyle(selectedFilter == filter ? .white : .primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            selectedFilter == filter ? Color.accentColor : Color.secondary.opacity(0.12),
+                            in: Capsule()
+                        )
                     }
-                    .foregroundStyle(selectedFilter == filter ? .white : .primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(
-                        selectedFilter == filter ? Color.accentColor : Color.secondary.opacity(0.12),
-                        in: Capsule()
-                    )
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.vertical, 1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var modeToggleButton: some View {
