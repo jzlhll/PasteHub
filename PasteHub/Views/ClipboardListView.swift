@@ -1672,10 +1672,10 @@ struct ClipboardListView: View {
 
     private var statusBadge: some View {
         Text(isSnippetMode ? "\(store.snippets.count) 条片段" : "\(store.items.count) 条")
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(.quaternary.opacity(0.18), in: Capsule())
     }
 
@@ -1691,11 +1691,16 @@ struct ClipboardListView: View {
     }
 
     private var clearButton: some View {
-        Button("清空", role: .destructive) {
+        Button(role: .destructive) {
             isClearConfirmationPresented = true
+        } label: {
+            Text("清空")
+                .font(.system(size: 16, weight: .semibold))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
         }
         .buttonStyle(.borderedProminent)
-        .controlSize(.small)
+        .controlSize(.large)
     }
 
     private var compactClearButton: some View {
@@ -2129,9 +2134,11 @@ struct ClipboardListView: View {
             onOpenSettings?()
         } label: {
             Image(systemName: "gearshape")
+                .font(isCompactMode ? nil : .system(size: 16, weight: .semibold))
+                .frame(width: isCompactMode ? nil : 20, height: isCompactMode ? nil : 20)
         }
         .buttonStyle(.bordered)
-        .controlSize(.small)
+        .controlSize(isCompactMode ? .small : .large)
         .help("打开设置")
     }
 }
@@ -3094,6 +3101,7 @@ private struct ClipboardCard: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .contentShape(Rectangle())
         } else {
             Rectangle()
                 .fill(accent.opacity(0.18))
@@ -3165,6 +3173,7 @@ private struct ClipboardCard: View {
         ZStack {
             nonCompactImageFillBackground
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
         }
         .frame(width: preferredWidth, height: fullBleedImageHeight)
         .frame(maxWidth: preferredWidth == nil ? .infinity : nil)
@@ -3208,6 +3217,7 @@ private struct ClipboardCard: View {
                         .buttonStyle(CardIconButtonStyle(tint: .pink))
                     }
                     .opacity(isHovering ? 1 : 0)
+                    .allowsHitTesting(isHovering)
                     .shadow(color: .black.opacity(0.24), radius: 6, x: 0, y: 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -3259,11 +3269,12 @@ private struct ClipboardCard: View {
                     .buttonStyle(CardIconButtonStyle(tint: .pink))
                 }
                 .opacity(isHovering ? 1 : 0)
+                .allowsHitTesting(isHovering)
             }
 
             Text(item.displayText)
                 .lineLimit(item.type == .text ? (compactStyle ? 3 : 6) : 2)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: item.type == .text ? 14 : 13, weight: .medium, design: .rounded))
                 .foregroundStyle(.primary)
 
             if !item.tags.isEmpty {
@@ -3335,6 +3346,7 @@ private struct ClipboardCard: View {
                     .padding(8)
             }
         }
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .scaleEffect(isPressing ? 0.988 : 1)
         .onTapGesture(perform: onPrimaryAction)
         .contextMenu {
@@ -3372,7 +3384,13 @@ private struct ClipboardCard: View {
             guard !Task.isCancelled else { return }
             loadedPreviewImage = image
         }
+        .onReceive(NotificationCenter.default.publisher(for: .panelDidHide)) { _ in
+            isHovering = false
+            isPressing = false
+        }
         .onDisappear {
+            isHovering = false
+            isPressing = false
             loadedPreviewImage = nil
         }
     }
@@ -3503,6 +3521,7 @@ private struct SnippetCard: View {
                     .buttonStyle(CardIconButtonStyle(tint: .pink))
                 }
                 .opacity(isHovering ? 1 : 0)
+                .allowsHitTesting(isHovering)
             }
 
             Text(snippet.displayTitle)
@@ -3555,6 +3574,7 @@ private struct SnippetCard: View {
                     .padding(8)
             }
         }
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .scaleEffect(isPressing ? 0.988 : 1)
         .onTapGesture(perform: onPrimaryAction)
         .contextMenu {
@@ -3574,6 +3594,14 @@ private struct SnippetCard: View {
                 isPressing = pressing
             }
         }, perform: {})
+        .onReceive(NotificationCenter.default.publisher(for: .panelDidHide)) { _ in
+            isHovering = false
+            isPressing = false
+        }
+        .onDisappear {
+            isHovering = false
+            isPressing = false
+        }
     }
 }
 

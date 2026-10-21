@@ -38,6 +38,7 @@ struct SettingsView: View {
             List(SettingsSection.allCases, selection: $selection) { section in
                 NavigationLink(value: section) {
                     Label(section.title, systemImage: section.systemImage)
+                        .font(.system(size: 15))
                 }
             }
             .listStyle(.sidebar)
@@ -148,7 +149,7 @@ private struct SettingsCard<Content: View>: View {
             if !title.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                     if let subtitle, !subtitle.isEmpty {
                         Text(subtitle)
                             .font(.system(size: 12))
@@ -197,7 +198,7 @@ private struct SettingsRow<Accessory: View>: View {
         HStack(alignment: subtitle == nil ? .center : .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 12))
