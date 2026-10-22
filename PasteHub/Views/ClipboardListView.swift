@@ -1672,7 +1672,7 @@ struct ClipboardListView: View {
 
     private var statusBadge: some View {
         Text(isSnippetMode ? "\(store.snippets.count) 条片段" : "\(store.items.count) 条")
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .font(.system(size: isSnippetMode ? 15 : 16, weight: .semibold, design: .rounded))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -1695,7 +1695,7 @@ struct ClipboardListView: View {
             isClearConfirmationPresented = true
         } label: {
             Text("清空")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
         }

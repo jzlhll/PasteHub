@@ -39,6 +39,7 @@ struct SettingsView: View {
                 NavigationLink(value: section) {
                     Label(section.title, systemImage: section.systemImage)
                         .font(.system(size: 15))
+                        .padding(.vertical, 7)
                 }
             }
             .listStyle(.sidebar)
