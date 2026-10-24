@@ -7,7 +7,7 @@ final class ScreenshotEditorState {
     var tool: ScreenshotTool?
     var lineWidth: CGFloat = 3
     var colorIndex = 0
-    var brushWidth: CGFloat = 36
+    var brushWidth: CGFloat = 22
     var solidColorIndex = 4
 
     var canUndo = false
@@ -40,12 +40,6 @@ final class ScreenshotEditorState {
     }
 
     var color: NSColor { colors[selectedColorIndex] }
-
-    var colorValue: String {
-        let color = color.usingColorSpace(.sRGB) ?? color
-        return String(format: "#%02X%02X%02X", Int((color.redComponent * 255).rounded()),
-                      Int((color.greenComponent * 255).rounded()), Int((color.blueComponent * 255).rounded()))
-    }
 }
 
 struct ScreenshotToolbar: View {
@@ -55,7 +49,8 @@ struct ScreenshotToolbar: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 ForEach(ScreenshotTool.allCases) { tool in
-                    icon(tool.symbol, title: tool.title, selected: state.tool == tool) {
+                    icon(tool.symbol, title: tool.title, selected: state.tool == tool,
+                         size: tool == .solid ? 18 : 21) {
                         state.tool = state.tool == tool ? nil : tool
                         state.onChange?()
                     }
@@ -71,16 +66,17 @@ struct ScreenshotToolbar: View {
             .background(.white, in: RoundedRectangle(cornerRadius: 12))
 
             if let tool = state.tool {
-                let widths: [CGFloat] = tool.isBrush ? [24, 36, 48] : [3, 6, 9]
+                let widths: [CGFloat] = tool.isBrush ? [14, 22, 29] : [3, 6, 9]
+                let diameters: [CGFloat] = tool.isBrush ? [7, 10, 12] : [7, 10, 13]
                 HStack(spacing: 8) {
-                    ForEach(widths, id: \.self) { width in
+                    ForEach(widths.indices, id: \.self) { index in
+                        let width = widths[index]
                         Button {
                             state.activeLineWidth = width
                             state.onChange?()
                         } label: {
                             Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
-                                .frame(width: tool.isBrush ? width / 3 + 4 : width + 4,
-                                       height: tool.isBrush ? width / 3 + 4 : width + 4)
+                                .frame(width: diameters[index], height: diameters[index])
                                 .frame(width: 24, height: 28)
                         }
                         .buttonStyle(.plain)
@@ -108,11 +104,6 @@ struct ScreenshotToolbar: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel(["红色", "黄色", "绿色", "蓝色", "黑色", "灰色", "白色"][index])
                         }
-                        if tool == .solid {
-                            Text(state.colorValue)
-                                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                .accessibilityLabel("当前色值 \(state.colorValue)")
-                        }
                     }
                 }
                 .padding(10)
@@ -125,11 +116,11 @@ struct ScreenshotToolbar: View {
         .environment(\.colorScheme, .light)
     }
 
-    private func icon(_ symbol: String, title: String, selected: Bool = false,
+    private func icon(_ symbol: String, title: String, selected: Bool = false, size: CGFloat = 21,
                       tint: Color = Color(nsColor: .darkGray), action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 21, weight: .medium))
+                .font(.system(size: size, weight: .medium))
                 .foregroundStyle(selected ? .blue : tint)
                 .frame(width: 36, height: 36)
                 .background(selected ? Color.blue.opacity(0.12) : .clear,
