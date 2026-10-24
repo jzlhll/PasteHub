@@ -1,9 +1,11 @@
 import AppKit
 
 enum ScreenshotTool: String, CaseIterable, Identifiable {
-    case rectangle, ellipse, pen, line, arrow, mosaic
+    case rectangle, ellipse, pen, line, arrow, mosaic, solid
 
     nonisolated var id: String { rawValue }
+    var isBrush: Bool { self == .mosaic || self == .solid }
+    var isFreehand: Bool { self == .pen || isBrush }
     var title: String {
         switch self {
         case .rectangle: return "矩形"
@@ -12,6 +14,7 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
         case .line: return "直线"
         case .arrow: return "箭头"
         case .mosaic: return "马赛克"
+        case .solid: return "纯色涂抹"
         }
     }
     var symbol: String {
@@ -22,6 +25,7 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
         case .line: return "line.diagonal"
         case .arrow: return "arrow.up.right"
         case .mosaic: return "square.grid.3x3.fill"
+        case .solid: return "paintbrush.fill"
         }
     }
 }
@@ -52,14 +56,14 @@ struct ScreenshotAnnotation {
             context.stroke(rect)
         case .ellipse:
             context.strokeEllipse(in: rect)
-        case .pen:
-            if points.count == 1 {
-                context.fillEllipse(in: CGRect(x: first.x - lineWidth / 2, y: first.y - lineWidth / 2,
-                                               width: lineWidth, height: lineWidth))
+        case .pen, .mosaic, .solid:
+            context.addPath(brushPath)
+            if tool == .mosaic {
+                context.clip()
+                context.interpolationQuality = .none
+                ScreenshotRaster.draw(mosaic, in: CGRect(origin: .zero, size: canvasSize), context: context)
             } else {
-                context.beginPath()
-                context.addLines(between: points)
-                context.strokePath()
+                context.fillPath()
             }
         case .line, .arrow:
             context.move(to: first)
@@ -75,11 +79,22 @@ struct ScreenshotAnnotation {
                                            y: last.y - length * sin(angle + .pi / 6)))
                 context.strokePath()
             }
-        case .mosaic:
-            context.clip(to: rect)
-            context.interpolationQuality = .none
-            ScreenshotRaster.draw(mosaic, in: CGRect(origin: .zero, size: canvasSize), context: context)
         }
+    }
+
+    private var brushPath: CGPath {
+        let path = CGMutablePath()
+        guard let first = points.first else { return path }
+        if points.count == 1 {
+            path.addEllipse(in: CGRect(x: first.x - lineWidth / 2, y: first.y - lineWidth / 2,
+                                      width: lineWidth, height: lineWidth))
+        } else {
+            let stroke = CGMutablePath()
+            stroke.addLines(between: points)
+            path.addPath(stroke.copy(strokingWithWidth: lineWidth, lineCap: .round,
+                                     lineJoin: .round, miterLimit: 10))
+        }
+        return path
     }
 }
 

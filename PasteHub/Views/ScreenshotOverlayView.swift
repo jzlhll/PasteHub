@@ -41,6 +41,7 @@ final class ScreenshotOverlayView: NSView {
         editor.onChange = { [weak self] in
             self?.updateToolbar()
             self?.updatePointerCursor()
+            self?.needsDisplay = true
         }
         editor.onUndo = { [weak self] in self?.undoAnnotation() }
     }
@@ -123,7 +124,7 @@ final class ScreenshotOverlayView: NSView {
         dragStart = pointer
         onActivate?()
         window?.makeFirstResponder(self)
-        if event.clickCount == 2, let selection, selection.contains(pointer) {
+        if event.clickCount == 2, editor.tool == nil, let selection, selection.contains(pointer) {
             editor.onCopy?()
             return
         }
@@ -133,8 +134,8 @@ final class ScreenshotOverlayView: NSView {
         } else if let selection, selection.contains(pointer) {
             if let tool = editor.tool {
                 dragMode = .draw
-                pendingAnnotation = ScreenshotAnnotation(tool: tool, color: editor.colors[editor.colorIndex],
-                                                         lineWidth: editor.lineWidth, points: [pointer])
+                pendingAnnotation = ScreenshotAnnotation(tool: tool, color: editor.color,
+                                                         lineWidth: editor.activeLineWidth, points: [pointer])
             } else {
                 dragMode = .move
                 originalSelection = selection
@@ -161,8 +162,8 @@ final class ScreenshotOverlayView: NSView {
             guard let selection else { return }
             let point = CGPoint(x: min(selection.maxX, max(selection.minX, pointer.x)),
                                 y: min(selection.maxY, max(selection.minY, pointer.y)))
-            if pendingAnnotation?.tool == .pen {
-                pendingAnnotation?.points.append(point)
+            if pendingAnnotation?.tool.isFreehand == true {
+                if pendingAnnotation?.points.last != point { pendingAnnotation?.points.append(point) }
             } else {
                 pendingAnnotation?.points = [dragStart, point]
             }
@@ -264,7 +265,7 @@ final class ScreenshotOverlayView: NSView {
     private func updateToolbar() {
         guard let selection, dragMode == nil else { toolbar.isHidden = true; return }
         // 预留二级面板高度，底部空间不足时整体放到选区上方或屏幕内。
-        let size = CGSize(width: 440, height: editor.tool != nil && editor.tool != .mosaic ? 116 : 60)
+        let size = CGSize(width: 484, height: editor.tool != nil ? 116 : 60)
         let x = min(max(4, selection.maxX - size.width), max(4, bounds.width - size.width - 4))
         var y = selection.maxY + 10
         if y + size.height > bounds.height - 4 { y = selection.minY - size.height - 10 }
@@ -306,6 +307,22 @@ final class ScreenshotOverlayView: NSView {
             let width = Int((selection.width * CGFloat(image.width) / bounds.width).rounded())
             let height = Int((selection.height * CGFloat(image.height) / bounds.height).rounded())
             drawLabel("\(width) × \(height)", at: CGPoint(x: selection.minX + 5, y: max(5, selection.minY - 26)))
+            if pendingSelection == nil, editor.tool?.isBrush == true, selection.contains(pointer),
+               toolbar.isHidden || !toolbar.frame.contains(pointer),
+               dragMode == .draw || (dragMode == nil && handleIndex(at: pointer) == nil) {
+                let diameter = editor.activeLineWidth
+                let brush = CGRect(x: pointer.x - diameter / 2, y: pointer.y - diameter / 2,
+                                   width: diameter, height: diameter)
+                context.saveGState()
+                context.clip(to: selection)
+                context.setLineWidth(3)
+                context.setStrokeColor(NSColor.black.withAlphaComponent(0.7).cgColor)
+                context.strokeEllipse(in: brush)
+                context.setLineWidth(1)
+                context.setStrokeColor(NSColor.white.cgColor)
+                context.strokeEllipse(in: brush)
+                context.restoreGState()
+            }
         } else if bounds.contains(pointer), window?.frame.contains(NSEvent.mouseLocation) == true {
             drawMagnifier(in: context)
         }

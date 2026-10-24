@@ -7,6 +7,9 @@ final class ScreenshotEditorState {
     var tool: ScreenshotTool?
     var lineWidth: CGFloat = 3
     var colorIndex = 0
+    var brushWidth: CGFloat = 36
+    var solidColorIndex = 4
+
     var canUndo = false
     var onChange: (() -> Void)?
     var onUndo: (() -> Void)?
@@ -21,6 +24,28 @@ final class ScreenshotEditorState {
         NSColor(srgbRed: 0.20, green: 0.41, blue: 0.98, alpha: 1),
         .black, NSColor(srgbRed: 0.56, green: 0.58, blue: 0.62, alpha: 1), .white
     ]
+
+    var activeLineWidth: CGFloat {
+        get { tool?.isBrush == true ? brushWidth : lineWidth }
+        set {
+            if tool?.isBrush == true { brushWidth = newValue } else { lineWidth = newValue }
+        }
+    }
+
+    var selectedColorIndex: Int {
+        get { tool == .solid ? solidColorIndex : colorIndex }
+        set {
+            if tool == .solid { solidColorIndex = newValue } else { colorIndex = newValue }
+        }
+    }
+
+    var color: NSColor { colors[selectedColorIndex] }
+
+    var colorValue: String {
+        let color = color.usingColorSpace(.sRGB) ?? color
+        return String(format: "#%02X%02X%02X", Int((color.redComponent * 255).rounded()),
+                      Int((color.greenComponent * 255).rounded()), Int((color.blueComponent * 255).rounded()))
+    }
 }
 
 struct ScreenshotToolbar: View {
@@ -45,39 +70,49 @@ struct ScreenshotToolbar: View {
             .padding(8)
             .background(.white, in: RoundedRectangle(cornerRadius: 12))
 
-            if let tool = state.tool, tool != .mosaic {
-                HStack(spacing: 12) {
-                    ForEach([CGFloat(3), 6, 9], id: \.self) { width in
+            if let tool = state.tool {
+                let widths: [CGFloat] = tool.isBrush ? [24, 36, 48] : [3, 6, 9]
+                HStack(spacing: 8) {
+                    ForEach(widths, id: \.self) { width in
                         Button {
-                            state.lineWidth = width
+                            state.activeLineWidth = width
+                            state.onChange?()
                         } label: {
-                            Circle().fill(state.lineWidth == width ? Color.blue : Color.gray)
-                                .frame(width: width + 4, height: width + 4)
+                            Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
+                                .frame(width: tool.isBrush ? width / 3 + 4 : width + 4,
+                                       height: tool.isBrush ? width / 3 + 4 : width + 4)
                                 .frame(width: 24, height: 28)
                         }
                         .buttonStyle(.plain)
-                        .help("线宽 \(Int(width))")
-                        .accessibilityLabel("线宽 \(Int(width))")
+                        .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                        .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
                     }
-                    Divider().frame(height: 24)
-                    ForEach(state.colors.indices, id: \.self) { index in
-                        Button {
-                            state.colorIndex = index
-                        } label: {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color(nsColor: state.colors[index]))
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(.gray.opacity(0.4)))
-                                .overlay {
-                                    if state.colorIndex == index {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundStyle(index == 1 || index == 6 ? .black : .white)
+                    if tool != .mosaic {
+                        Divider().frame(height: 24)
+                        ForEach(state.colors.indices, id: \.self) { index in
+                            Button {
+                                state.selectedColorIndex = index
+                            } label: {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color(nsColor: state.colors[index]))
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(.gray.opacity(0.4)))
+                                    .overlay {
+                                        if state.selectedColorIndex == index {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundStyle(index == 1 || index == 6 ? .black : .white)
+                                        }
                                     }
-                                }
-                                .frame(width: 26, height: 26)
+                                    .frame(width: 26, height: 26)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(["红色", "黄色", "绿色", "蓝色", "黑色", "灰色", "白色"][index])
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(["红色", "黄色", "绿色", "蓝色", "黑色", "灰色", "白色"][index])
+                        if tool == .solid {
+                            Text(state.colorValue)
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .accessibilityLabel("当前色值 \(state.colorValue)")
+                        }
                     }
                 }
                 .padding(10)
