@@ -312,7 +312,8 @@ final class ScreenshotOverlayView: NSView {
     }
 
     private func drawMagnifier(in context: CGContext) {
-        let width: CGFloat = 174, height: CGFloat = 242
+        let previewSize: CGFloat = 180
+        let width = previewSize + 24, height = previewSize + 92
         var x = pointer.x - width - 20
         if x < 8 { x = pointer.x + 20 }
         x = min(max(8, x), max(8, bounds.width - width - 8))
@@ -323,8 +324,8 @@ final class ScreenshotOverlayView: NSView {
         context.setFillColor(NSColor.black.withAlphaComponent(0.88).cgColor)
         context.addPath(CGPath(roundedRect: card, cornerWidth: 10, cornerHeight: 10, transform: nil))
         context.fillPath()
-        let target = CGRect(x: x + 12, y: y + 12, width: 150, height: 150)
-        let magnification: CGFloat = 4
+        let target = CGRect(x: x + 12, y: y + 12, width: previewSize, height: previewSize)
+        let magnification: CGFloat = 3
         let pixel = pixelPoint
         let sampleRadius = ceil(target.width / (2 * magnification))
         let sampleSize = sampleRadius * 2 + 1
@@ -355,9 +356,9 @@ final class ScreenshotOverlayView: NSView {
         context.setStrokeColor(NSColor.systemBlue.cgColor)
         context.stroke(CGRect(x: target.midX - magnification / 2, y: target.midY - magnification / 2,
                               width: magnification, height: magnification))
-        drawText("X: \(Int(pixel.x))  Y: \(Int(pixel.y))", at: CGPoint(x: x + 12, y: y + 171), size: 12)
-        drawText(colorValue ?? "无法取色", at: CGPoint(x: x + 12, y: y + 192), size: 14)
-        drawText("Shift 切换 · ⌘C 复制", at: CGPoint(x: x + 12, y: y + 219), size: 10)
+        drawText("X: \(Int(pixel.x))  Y: \(Int(pixel.y))", at: CGPoint(x: x + 12, y: target.maxY + 9), size: 12)
+        drawText(colorValue ?? "无法取色", at: CGPoint(x: x + 12, y: target.maxY + 30), size: 14)
+        drawText("Shift 切换 · ⌘C 复制", at: CGPoint(x: x + 12, y: target.maxY + 57), size: 10)
     }
 
     private func drawLabel(_ text: String, at point: CGPoint) {
