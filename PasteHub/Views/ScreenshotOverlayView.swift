@@ -123,6 +123,10 @@ final class ScreenshotOverlayView: NSView {
         dragStart = pointer
         onActivate?()
         window?.makeFirstResponder(self)
+        if event.clickCount == 2, let selection, selection.contains(pointer) {
+            editor.onCopy?()
+            return
+        }
         if let index = handleIndex(at: pointer), let selection {
             originalSelection = selection
             dragMode = .resize(index)
