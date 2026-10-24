@@ -5,7 +5,7 @@ import AppKit
 @Observable
 final class ScreenshotEditorState {
     var tool: ScreenshotTool?
-    var lineWidth: CGFloat = 3
+    var lineWidth: CGFloat = 2
     var colorIndex = 0
     var brushWidth: CGFloat = 15
     var solidColorIndex = 4
@@ -47,7 +47,7 @@ struct ScreenshotToolbar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6.4) {
-            HStack(spacing: 3.2) {
+            HStack(spacing: 0) {
                 ForEach(ScreenshotTool.allCases) { tool in
                     icon(tool.symbol, title: tool.title, selected: state.tool == tool,
                          size: tool == .solid ? 14.4 : 16.8) {
@@ -55,20 +55,22 @@ struct ScreenshotToolbar: View {
                         state.onChange?()
                     }
                 }
-                Divider().frame(width: 0.8, height: 17.6).padding(.horizontal, 3.2)
                 icon("arrow.uturn.backward", title: "撤销（⌘Z）") { state.onUndo?() }
+                    .overlay(alignment: .leading) {
+                        Divider().frame(width: 0.8, height: 17.6).allowsHitTesting(false)
+                    }
                     .disabled(!state.canUndo)
                 icon("arrow.down.to.line", title: "保存为 PNG") { state.onSave?() }
                 icon("xmark", title: "取消（Esc）", tint: .red) { state.onCancel?() }
                 icon("checkmark", title: "复制截图（Enter）", tint: .green) { state.onCopy?() }
             }
-            .padding(6.4)
+            .frame(width: 380.8, height: 41.6)
             .background(.white, in: RoundedRectangle(cornerRadius: 9.6))
 
             if let tool = state.tool {
-                let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [3, 6, 9]
-                let diameters: [CGFloat] = tool.isBrush ? [5.6, 8, 9.6] : [5.6, 8, 10.4]
-                HStack(spacing: 6.4) {
+                let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [2, 4, 6]
+                let diameters: [CGFloat] = tool.isBrush ? [5.6, 8, 9.6] : [4.8, 6.4, 8]
+                HStack(spacing: 0) {
                     ForEach(widths.indices, id: \.self) { index in
                         let width = widths[index]
                         Button {
@@ -77,7 +79,8 @@ struct ScreenshotToolbar: View {
                         } label: {
                             Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
                                 .frame(width: diameters[index], height: diameters[index])
-                                .frame(width: 28.8, height: 28.8)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44.8)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -85,7 +88,6 @@ struct ScreenshotToolbar: View {
                         .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
                     }
                     if tool != .mosaic {
-                        Divider().frame(width: 0.8, height: 19.2)
                         ForEach(state.colors.indices, id: \.self) { index in
                             Button {
                                 state.selectedColorIndex = index
@@ -101,13 +103,21 @@ struct ScreenshotToolbar: View {
                                         }
                                     }
                                     .frame(width: 20.8, height: 20.8)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44.8)
+                                    .contentShape(Rectangle())
+                            }
+                            .overlay(alignment: .leading) {
+                                if index == state.colors.startIndex {
+                                    Divider().frame(width: 0.8, height: 19.2).allowsHitTesting(false)
+                                }
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(["红色", "黄色", "绿色", "蓝色", "黑色", "灰色", "白色"][index])
                         }
                     }
                 }
-                .padding(8)
+                .frame(width: 380.8, height: 44.8)
                 .background(.white, in: RoundedRectangle(cornerRadius: 9.6))
             }
         }
@@ -126,6 +136,8 @@ struct ScreenshotToolbar: View {
                 .frame(width: 28.8, height: 28.8)
                 .background(selected ? Color.blue.opacity(0.12) : .clear,
                             in: RoundedRectangle(cornerRadius: 6.4))
+                .frame(maxWidth: .infinity)
+                .frame(height: 41.6)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
