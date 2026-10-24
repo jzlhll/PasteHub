@@ -1,6 +1,6 @@
 import Foundation
 
-struct SnippetItem: Identifiable, Codable, Hashable {
+nonisolated struct SnippetItem: Identifiable, Codable, Hashable {
     let id: UUID
     var title: String
     var content: String

@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         monitor.start()
 
         store.onClipboardWrite = { [weak self] in
+            self?.pasteService.cancelPendingPaste()
             self?.monitor.syncChangeCount()
         }
 
@@ -36,6 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanel()
         setupHotKey()
 
+        settings.onHistoryLimitChanged = { [weak self] in
+            self?.store.applyHistoryLimit()
+        }
         settings.onHotkeyChanged = { [weak self] in
             self?.reloadHotKey()
         }
@@ -59,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         teardownMonitors()
+        store.flushPendingWrites()
     }
 
     func applicationDidResignActive(_ notification: Notification) {
@@ -441,6 +446,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func teardownMonitors() {
         screenshotService.cancel()
+        pasteService.cancelPendingPaste()
         monitor?.stop()
         teardownHotKeyMonitors()
     }

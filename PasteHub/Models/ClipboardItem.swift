@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-enum ClipboardContentType: String, Codable {
+nonisolated enum ClipboardContentType: String, Codable {
     case text
     case image
     case file
@@ -23,7 +23,7 @@ enum ClipboardContentType: String, Codable {
     }
 }
 
-struct ClipboardItem: Identifiable, Codable {
+nonisolated struct ClipboardItem: Identifiable, Codable, Equatable {
     let id: UUID
     let type: ClipboardContentType
     let content: String

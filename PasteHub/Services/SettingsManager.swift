@@ -94,7 +94,10 @@ enum CompactPanelPosition: String, CaseIterable, Identifiable {
 @Observable
 final class SettingsManager {
     var maxHistoryCount: Int {
-        didSet { UserDefaults.standard.set(maxHistoryCount, forKey: "maxHistoryCount") }
+        didSet {
+            UserDefaults.standard.set(maxHistoryCount, forKey: "maxHistoryCount")
+            onHistoryLimitChanged?()
+        }
     }
 
     var launchAtLogin: Bool {
@@ -179,6 +182,7 @@ final class SettingsManager {
         }
     }
 
+    var onHistoryLimitChanged: (() -> Void)?
     var onHotkeyChanged: (() -> Void)?
     var onPanelEdgeChanged: (() -> Void)?
     var onCompactModeChanged: (() -> Void)?

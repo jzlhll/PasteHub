@@ -2,6 +2,17 @@ import AppKit
 import ImageIO
 import SwiftUI
 
+private struct ClipboardPanelPresentedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private extension EnvironmentValues {
+    var clipboardPanelPresented: Bool {
+        get { self[ClipboardPanelPresentedKey.self] }
+        set { self[ClipboardPanelPresentedKey.self] = newValue }
+    }
+}
+
 private enum ClipboardFilter: String, CaseIterable, Identifiable {
     case all
     case text
@@ -76,6 +87,7 @@ struct ClipboardListView: View {
     @State private var isCommandModifierPressed = false
     @State private var visibleHistoryItemIDs: Set<UUID> = []
     @State private var visibleSnippetItemIDs: Set<UUID> = []
+    @Environment(PanelPresentationState.self) private var presentationState
     @State private var cachedWaterfallColumns: [[ClipboardItem]] = [[], []]
     @State private var cachedCompactWaterfallColumns: [[ClipboardItem]] = [[], []]
     @State private var horizontalHistoryViewportRangeX: ClosedRange<CGFloat>?
@@ -515,7 +527,7 @@ struct ClipboardListView: View {
         .onChange(of: compactDensity) { _, _ in
             rebuildWaterfallCaches()
         }
-        .onChange(of: filteredItems.map(\.id)) { _, _ in
+        .onChange(of: filteredItems) { _, _ in
             syncHighDensitySearchModeIfNeeded()
             syncSelectionIfNeeded()
             syncVisibleItemsIfNeeded()
@@ -526,7 +538,9 @@ struct ClipboardListView: View {
             syncSelectionIfNeeded()
             syncVisibleItemsIfNeeded()
         }
+        .environment(\.clipboardPanelPresented, presentationState.isPresented)
         .onReceive(NotificationCenter.default.publisher(for: .panelDidHide)) { _ in
+            ClipboardImagePreviewLoader.cancelAll()
             searchText = ""
             isSearchExpanded = false
             isSearchFocused = false
@@ -1357,7 +1371,14 @@ struct ClipboardListView: View {
 
     private var horizontalWaterfallContent: some View {
         GeometryReader { geometry in
+            let items = filteredItems
+            let indices = horizontalRenderedIndices(count: items.count, itemWidth: horizontalCardWidth,
+                viewport: horizontalHistoryViewportRangeX, fallbackWidth: geometry.size.width)
+            let documentWidth = max(CGFloat(items.count) * (horizontalCardWidth + 8) - 8, 0)
+            let quickLabels = historyQuickLabelsByID
             HorizontalWheelScrollView(
+                documentWidth: documentWidth,
+                itemWidth: horizontalCardWidth,
                 indicatorBottomInset: horizontalScrollerGap,
                 targetVisibleRangeX: horizontalHistoryVisibleRangeX,
                 onVisibleRangeChange: { rangeX in
@@ -1371,8 +1392,8 @@ struct ClipboardListView: View {
                     }
                 }
             ) {
-                LazyHStack(alignment: .top, spacing: 8) {
-                    ForEach(filteredItems) { item in
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(Array(items[indices])) { item in
                         ClipboardCard(
                             item: item,
                             onPrimaryAction: {
@@ -1388,7 +1409,7 @@ struct ClipboardListView: View {
                             preferredHeight: geometry.size.height - horizontalScrollerGap - 4,
                             compactStyle: true,
                             isSelected: selectedHistoryItemID == item.id,
-                            quickShortcutLabel: historyQuickLabelsByID[item.id]
+                            quickShortcutLabel: quickLabels[item.id]
                         )
                         .onAppear {
                             trackHistoryVisibility(item.id, isVisible: true)
@@ -1398,6 +1419,8 @@ struct ClipboardListView: View {
                         }
                     }
                 }
+                .padding(.leading, CGFloat(indices.lowerBound) * (horizontalCardWidth + 8))
+                .frame(width: documentWidth, alignment: .leading)
                 .padding(.vertical, 2)
             }
         }
@@ -1450,7 +1473,14 @@ struct ClipboardListView: View {
 
     private var horizontalSnippetContent: some View {
         GeometryReader { geometry in
+            let items = filteredSnippets
+            let indices = horizontalRenderedIndices(count: items.count, itemWidth: horizontalSnippetWidth,
+                viewport: horizontalSnippetViewportRangeX, fallbackWidth: geometry.size.width)
+            let documentWidth = max(CGFloat(items.count) * (horizontalSnippetWidth + 8) - 8, 0)
+            let quickLabels = snippetQuickLabelsByID
             HorizontalWheelScrollView(
+                documentWidth: documentWidth,
+                itemWidth: horizontalSnippetWidth,
                 indicatorBottomInset: horizontalScrollerGap,
                 targetVisibleRangeX: horizontalSnippetVisibleRangeX,
                 onVisibleRangeChange: { rangeX in
@@ -1464,8 +1494,8 @@ struct ClipboardListView: View {
                     }
                 }
             ) {
-                LazyHStack(alignment: .top, spacing: 8) {
-                    ForEach(filteredSnippets) { snippet in
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(Array(items[indices])) { snippet in
                         SnippetCard(
                             snippet: snippet,
                             onPrimaryAction: {
@@ -1479,7 +1509,7 @@ struct ClipboardListView: View {
                             preferredHeight: geometry.size.height - horizontalScrollerGap - 4,
                             compactStyle: true,
                             isSelected: selectedSnippetItemID == snippet.id,
-                            quickShortcutLabel: snippetQuickLabelsByID[snippet.id]
+                            quickShortcutLabel: quickLabels[snippet.id]
                         )
                         .onAppear {
                             trackSnippetVisibility(snippet.id, isVisible: true)
@@ -1489,10 +1519,23 @@ struct ClipboardListView: View {
                         }
                     }
                 }
+                .padding(.leading, CGFloat(indices.lowerBound) * (horizontalSnippetWidth + 8))
+                .frame(width: documentWidth, alignment: .leading)
                 .padding(.vertical, 2)
             }
         }
         .frame(minHeight: horizontalSnippetContentHeight, maxHeight: .infinity)
+    }
+
+    private func horizontalRenderedIndices(
+        count: Int, itemWidth: CGFloat, viewport: ClosedRange<CGFloat>?, fallbackWidth: CGFloat
+    ) -> Range<Int> {
+        let stride = itemWidth + 8
+        let lower = viewport?.lowerBound ?? 0
+        let upper = viewport?.upperBound ?? fallbackWidth
+        let start = min(count, max(0, Int(floor(lower / stride)) - 2))
+        let end = min(count, max(start, Int(ceil(upper / stride)) + 2))
+        return start..<end
     }
 
     private func rebuildWaterfallCaches() {
@@ -1695,22 +1738,32 @@ struct ClipboardListView: View {
             isClearConfirmationPresented = true
         } label: {
             Text("清空")
-                .font(.system(size: 15, weight: .semibold))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Color.red, in: Capsule())
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .buttonStyle(.plain)
     }
 
     private var compactClearButton: some View {
         Button {
             isClearConfirmationPresented = true
         } label: {
-            Image(systemName: "trash")
+            Text("清空")
+                .font(.system(size: compactControlFontSize, weight: .semibold, design: .rounded))
+                .hidden()
+                .overlay {
+                    Image(systemName: "trash")
+                        .font(.system(size: compactControlFontSize, weight: .semibold))
+                }
+                .padding(.horizontal, compactDensity == .high ? 8 : 9)
+                .padding(.vertical, compactDensity == .low ? 5 : 4)
+                .background(Color.secondary.opacity(0.12), in: Capsule())
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        .buttonStyle(.plain)
+        .accessibilityLabel("清空历史")
         .help("清空历史")
         .disabled(store.items.isEmpty)
     }
@@ -2133,12 +2186,19 @@ struct ClipboardListView: View {
         Button {
             onOpenSettings?()
         } label: {
-            Image(systemName: "gearshape")
-                .font(isCompactMode ? nil : .system(size: 16, weight: .semibold))
-                .frame(width: isCompactMode ? nil : 20, height: isCompactMode ? nil : 20)
+            Text("设置")
+                .font(.system(size: isCompactMode ? compactControlFontSize : 12, weight: .semibold, design: .rounded))
+                .hidden()
+                .overlay {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: isCompactMode ? compactControlFontSize : 12, weight: .semibold))
+                }
+                .padding(.horizontal, isCompactMode ? (compactDensity == .high ? 8 : 9) : 10)
+                .padding(.vertical, isCompactMode ? (compactDensity == .low ? 5 : 4) : 7)
+                .background(Color.secondary.opacity(0.12), in: Capsule())
         }
-        .buttonStyle(.bordered)
-        .controlSize(isCompactMode ? .small : .large)
+        .buttonStyle(.plain)
+        .accessibilityLabel("打开设置")
         .help("打开设置")
     }
 }
@@ -2154,6 +2214,7 @@ private struct CompactLinearHistoryRow: View {
     let onManageTags: () -> Void
     let onSaveAsSnippet: () -> Void
     let onTokenSelect: () -> Void
+    @Environment(\.clipboardPanelPresented) private var isPanelPresented
     @State private var loadedPreviewImage: NSImage?
 
     private var previewImageURL: URL? {
@@ -2267,8 +2328,8 @@ private struct CompactLinearHistoryRow: View {
             Divider()
             Button("删除", role: .destructive, action: onDelete)
         }
-        .task(id: previewImageURL?.absoluteString) {
-            guard let previewImageURL else {
+        .task(id: isPanelPresented ? previewImageURL?.absoluteString : nil) {
+            guard isPanelPresented, let previewImageURL else {
                 loadedPreviewImage = nil
                 return
             }
@@ -2387,6 +2448,7 @@ private struct CompactClipboardCard: View {
     let isSelected: Bool
     let quickShortcutLabel: String?
     @State private var isHovering = false
+    @Environment(\.clipboardPanelPresented) private var isPanelPresented
     @State private var loadedPreviewImage: NSImage?
 
     private var accent: Color {
@@ -2504,8 +2566,8 @@ private struct CompactClipboardCard: View {
                 isHovering = hovering
             }
         }
-        .task(id: previewImageURL?.absoluteString) {
-            guard let previewImageURL else {
+        .task(id: isPanelPresented ? previewImageURL?.absoluteString : nil) {
+            guard isPanelPresented, let previewImageURL else {
                 loadedPreviewImage = nil
                 return
             }
@@ -2739,6 +2801,8 @@ private final class ScrollWheelObservationView: NSView {
 }
 
 private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
+    let documentWidth: CGFloat
+    let itemWidth: CGFloat
     let indicatorBottomInset: CGFloat
     let targetVisibleRangeX: ClosedRange<CGFloat>?
     let onVisibleRangeChange: ((ClosedRange<CGFloat>) -> Void)?
@@ -2746,12 +2810,16 @@ private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
     let content: Content
 
     init(
+        documentWidth: CGFloat,
+        itemWidth: CGFloat,
         indicatorBottomInset: CGFloat = 0,
         targetVisibleRangeX: ClosedRange<CGFloat>? = nil,
         onVisibleRangeChange: ((ClosedRange<CGFloat>) -> Void)? = nil,
         onUserScrollIntervention: (() -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
+        self.documentWidth = documentWidth
+        self.itemWidth = itemWidth
         self.indicatorBottomInset = indicatorBottomInset
         self.targetVisibleRangeX = targetVisibleRangeX
         self.onVisibleRangeChange = onVisibleRangeChange
@@ -2765,6 +2833,7 @@ private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
 
     func makeNSView(context: Context) -> WheelEnabledHorizontalScrollView {
         let scrollView = WheelEnabledHorizontalScrollView()
+        scrollView.itemWidth = itemWidth
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
         scrollView.hasHorizontalScroller = true
@@ -2782,6 +2851,8 @@ private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
         )
 
         let hostingView = context.coordinator.hostingView
+        context.coordinator.documentWidth = documentWidth
+        scrollView.itemWidth = itemWidth
         context.coordinator.targetVisibleRangeX = targetVisibleRangeX
         context.coordinator.onVisibleRangeChange = onVisibleRangeChange
         scrollView.documentView = hostingView
@@ -2791,21 +2862,24 @@ private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
         scrollView.onUserScrollIntervention = onUserScrollIntervention
         scrollView.onLayout = { [weak scrollView, weak hostingView, weak coordinator = context.coordinator] in
             guard let scrollView, let hostingView else { return }
-            Self.syncDocumentFrame(scrollView: scrollView, hostingView: hostingView)
+            Self.syncDocumentFrame(scrollView: scrollView, hostingView: hostingView,
+                documentWidth: coordinator?.documentWidth ?? 0)
             Self.ensureVisibleRange(
                 targetRangeX: coordinator?.targetVisibleRangeX,
                 scrollView: scrollView,
                 animated: false
             )
-            scrollView.reportVisibleRange(force: true)
+            scrollView.reportVisibleRange()
         }
-        Self.syncDocumentFrame(scrollView: scrollView, hostingView: hostingView)
+        Self.syncDocumentFrame(scrollView: scrollView, hostingView: hostingView, documentWidth: documentWidth)
         Self.ensureVisibleRange(targetRangeX: targetVisibleRangeX, scrollView: scrollView, animated: false)
         return scrollView
     }
 
     func updateNSView(_ scrollView: WheelEnabledHorizontalScrollView, context: Context) {
         let hostingView = context.coordinator.hostingView
+        context.coordinator.documentWidth = documentWidth
+        scrollView.itemWidth = itemWidth
         context.coordinator.targetVisibleRangeX = targetVisibleRangeX
         context.coordinator.onVisibleRangeChange = onVisibleRangeChange
         hostingView.rootView = content
@@ -2819,19 +2893,19 @@ private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
             bottom: indicatorBottomInset,
             right: 0
         )
-        Self.syncDocumentFrame(scrollView: scrollView, hostingView: hostingView)
+        Self.syncDocumentFrame(scrollView: scrollView, hostingView: hostingView, documentWidth: documentWidth)
         Self.ensureVisibleRange(targetRangeX: targetVisibleRangeX, scrollView: scrollView, animated: true)
     }
 
     private static func syncDocumentFrame(
         scrollView: NSScrollView,
-        hostingView: NSHostingView<Content>
+        hostingView: NSHostingView<Content>,
+        documentWidth: CGFloat
     ) {
-        let fit = hostingView.fittingSize
         let clipBounds = scrollView.contentView.bounds
         let targetSize = NSSize(
-            width: max(fit.width, clipBounds.width),
-            height: max(fit.height, clipBounds.height)
+            width: max(documentWidth, clipBounds.width),
+            height: clipBounds.height
         )
         if hostingView.frame.size != targetSize {
             hostingView.frame = NSRect(origin: .zero, size: targetSize)
@@ -2876,6 +2950,7 @@ private struct HorizontalWheelScrollView<Content: View>: NSViewRepresentable {
 
     final class Coordinator {
         let hostingView: NSHostingView<Content>
+        var documentWidth: CGFloat = 0
         var targetVisibleRangeX: ClosedRange<CGFloat>?
         var onVisibleRangeChange: ((ClosedRange<CGFloat>) -> Void)?
 
@@ -2890,7 +2965,8 @@ private final class WheelEnabledHorizontalScrollView: NSScrollView {
     var onVisibleRangeChange: ((ClosedRange<CGFloat>) -> Void)?
     var onUserScrollIntervention: (() -> Void)?
     private var isLayoutCallbackScheduled = false
-    private var lastReportedVisibleRangeX: ClosedRange<CGFloat>?
+    var itemWidth: CGFloat = 1
+    private var lastReportedVisibleIndices: Range<Int>?
 
     override func layout() {
         super.layout()
@@ -2900,7 +2976,7 @@ private final class WheelEnabledHorizontalScrollView: NSScrollView {
             guard let self else { return }
             self.isLayoutCallbackScheduled = false
             self.onLayout?()
-            self.reportVisibleRange(force: true)
+            self.reportVisibleRange()
         }
     }
 
@@ -2909,19 +2985,16 @@ private final class WheelEnabledHorizontalScrollView: NSScrollView {
         reportVisibleRange()
     }
 
-    func reportVisibleRange(force: Bool = false) {
+    func reportVisibleRange() {
         let minX = contentView.bounds.minX
         let maxX = minX + contentView.bounds.width
-        let currentRange = minX...maxX
-
-        if !force, let lastRange = lastReportedVisibleRangeX,
-           abs(lastRange.lowerBound - currentRange.lowerBound) < 0.5,
-           abs(lastRange.upperBound - currentRange.upperBound) < 0.5 {
-            return
-        }
-
-        lastReportedVisibleRangeX = currentRange
-        onVisibleRangeChange?(currentRange)
+        let stride = itemWidth + 8
+        let first = max(0, Int(floor((minX - itemWidth) / stride)) + 1)
+        let end = max(first, Int(ceil(maxX / stride)))
+        let indices = first..<end
+        guard indices != lastReportedVisibleIndices else { return }
+        lastReportedVisibleIndices = indices
+        onVisibleRangeChange?(minX...maxX)
     }
 
     override func scrollWheel(with event: NSEvent) {
@@ -3009,6 +3082,7 @@ private struct ClipboardCard: View {
     let quickShortcutLabel: String?
     @State private var isHovering = false
     @State private var isPressing = false
+    @Environment(\.clipboardPanelPresented) private var isPanelPresented
     @State private var loadedPreviewImage: NSImage?
 
     init(
@@ -3370,8 +3444,8 @@ private struct ClipboardCard: View {
                 isPressing = pressing
             }
         }, perform: {})
-        .task(id: previewImageURL?.absoluteString) {
-            guard let previewImageURL else {
+        .task(id: isPanelPresented ? previewImageURL?.absoluteString : nil) {
+            guard isPanelPresented, let previewImageURL else {
                 loadedPreviewImage = nil
                 return
             }
@@ -3998,7 +4072,25 @@ private struct CardIconButtonStyle: ButtonStyle {
     }
 }
 
+nonisolated private struct PreviewImageResult: @unchecked Sendable {
+    let image: NSImage?
+    let cost: Int
+}
+
 private enum ClipboardImagePreviewLoader {
+    private static let queue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "PasteHub.imagePreviews"
+        queue.maxConcurrentOperationCount = 2
+        queue.qualityOfService = .utility
+        return queue
+    }()
+    private static var jobs: [UUID: BackgroundJob<PreviewImageResult>] = [:]
+
+    static func cancelAll() {
+        for job in jobs.values { job.cancel() }
+    }
+
     private static let cardThumbnailMaxPixelSize = 560
     private static let iconThumbnailMaxPixelSize = 72
 
@@ -4046,21 +4138,28 @@ private enum ClipboardImagePreviewLoader {
             return cached
         }
 
-        let image = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
+        guard !Task.isCancelled else { return nil }
+        let id = UUID()
+        let job = BackgroundJob {
+            autoreleasepool {
                 let image = makeThumbnailImage(from: normalizedURL, maxPixelSize: maxPixelSize)
                     ?? NSImage(contentsOf: normalizedURL)
-                continuation.resume(returning: image)
+                return PreviewImageResult(image: image, cost: image.map { memoryCost(of: $0) } ?? 0)
             }
         }
+        jobs[id] = job
+        defer { jobs[id] = nil }
+        guard let result = try? await job.value(on: queue),
+              !Task.isCancelled, !job.isCancelled else { return nil }
+        let image = result.image
 
         if let image {
-            cache.setObject(image, forKey: key, cost: memoryCost(of: image))
+            cache.setObject(image, forKey: key, cost: result.cost)
         }
         return image
     }
 
-    private static func makeThumbnailImage(from url: URL, maxPixelSize: Int) -> NSImage? {
+    nonisolated private static func makeThumbnailImage(from url: URL, maxPixelSize: Int) -> NSImage? {
         let sourceOptions: [CFString: Any] = [
             kCGImageSourceShouldCache: false
         ]
@@ -4083,7 +4182,7 @@ private enum ClipboardImagePreviewLoader {
         )
     }
 
-    private static func memoryCost(of image: NSImage) -> Int {
+    nonisolated private static func memoryCost(of image: NSImage) -> Int {
         if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             return max(cgImage.bytesPerRow * cgImage.height, 1)
         }

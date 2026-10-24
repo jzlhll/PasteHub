@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Observation
 
 extension Notification.Name {
     static let panelKeyboardInput = Notification.Name("panelKeyboardInput")
@@ -10,9 +11,19 @@ extension Notification.Name {
     static let panelQuickSelect = Notification.Name("panelQuickSelect")
 }
 
+@MainActor
+@Observable
+final class PanelPresentationState {
+    var isPresented = false
+}
+
 final class FloatingPanel: NSPanel, NSWindowDelegate {
     private let settings: SettingsManager
-    private var isPresented = false
+    private let presentationState = PanelPresentationState()
+    private var isPresented: Bool {
+        get { presentationState.isPresented }
+        set { presentationState.isPresented = newValue }
+    }
     private var isHiding = false
     private static let quickSelectKeys: [Character] = Array("1234567890abcdefghijklmnopqrstuvwxyz")
     var onDidHide: (() -> Void)?
@@ -55,7 +66,7 @@ final class FloatingPanel: NSPanel, NSWindowDelegate {
         hasShadow = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        contentViewController = NSHostingController(rootView: rootView)
+        contentViewController = NSHostingController(rootView: rootView.environment(presentationState))
         configureContainerAppearance()
     }
 
@@ -160,12 +171,13 @@ final class FloatingPanel: NSPanel, NSWindowDelegate {
     }
 
     private var shouldHideOnToggle: Bool {
-        isVisible
+        isPresented
     }
 
     private func show() {
         guard let screen = targetScreenForShow() else { return }
         isPresented = true
+        isHiding = false
         let frames = placementFrames(for: settings.panelEdge, on: screen)
 
         if !isVisible {
@@ -178,7 +190,7 @@ final class FloatingPanel: NSPanel, NSWindowDelegate {
         makeKeyAndOrderFront(nil)
 
         animate(to: frames.shown, duration: 0.18) { [weak self] in
-            guard let self else { return }
+            guard let self, self.isPresented, !self.isHiding else { return }
             self.makeKeyAndOrderFront(nil)
         }
     }
@@ -210,7 +222,7 @@ final class FloatingPanel: NSPanel, NSWindowDelegate {
         }
         level = .floating
         animate(to: hiddenTargetFrame, duration: 0.14) { [weak self] in
-            guard let self else { return }
+            guard let self, !self.isPresented, self.isHiding else { return }
             self.level = .normal
             self.orderOut(nil)
             self.onDidHide?()

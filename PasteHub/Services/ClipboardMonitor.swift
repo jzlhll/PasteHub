@@ -7,6 +7,13 @@ final class ClipboardMonitor {
     private let store: ClipboardStore
     private let settings: SettingsManager
     private let pasteboard = NSPasteboard.general
+    private let imageQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "PasteHub.clipboardImage"
+        queue.maxConcurrentOperationCount = 1
+        queue.qualityOfService = .utility
+        return queue
+    }()
     private let pollInterval: Duration = .milliseconds(400)
 
     init(store: ClipboardStore, settings: SettingsManager) {
@@ -19,7 +26,7 @@ final class ClipboardMonitor {
         task = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                self.checkClipboard()
+                await self.checkClipboard()
                 try? await Task.sleep(for: pollInterval)
             }
         }
@@ -36,9 +43,10 @@ final class ClipboardMonitor {
 
     // MARK: - Private
 
-    private func checkClipboard() {
-        guard pasteboard.changeCount != lastChangeCount else { return }
-        lastChangeCount = pasteboard.changeCount
+    private func checkClipboard() async {
+        let capturedChangeCount = pasteboard.changeCount
+        guard capturedChangeCount != lastChangeCount else { return }
+        lastChangeCount = capturedChangeCount
 
         let frontmostApp = NSWorkspace.shared.frontmostApplication
         let sourceBundleIdentifier = frontmostApp?.bundleIdentifier
@@ -54,36 +62,60 @@ final class ClipboardMonitor {
                forClasses: [NSURL.self],
                options: [.urlReadingFileURLsOnly: true]
            ) as? [URL], !urls.isEmpty {
-            for url in urls {
-                store.add(
-                    ClipboardItem(
-                        type: .file,
-                        content: url.absoluteString,
-                        sourceApp: sourceApp,
-                        sourceBundleIdentifier: sourceBundleIdentifier
-                    )
+            store.add(urls.map { url in
+                ClipboardItem(
+                    type: .file,
+                    content: url.absoluteString,
+                    sourceApp: sourceApp,
+                    sourceBundleIdentifier: sourceBundleIdentifier
                 )
-            }
+            })
             return
         }
 
         // 2) 图片
         if types.contains(.tiff) || types.contains(.png) {
-            if let data = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png),
-               let bitmap = NSBitmapImageRep(data: data),
-               let pngData = bitmap.representation(using: .png, properties: [:]) {
-               let filename = UUID().uuidString + ".png"
-                let fileURL = store.imagesDirectory.appendingPathComponent(filename)
-                try? pngData.write(to: fileURL)
-                store.add(
-                    ClipboardItem(
-                        type: .image,
-                        content: fileURL.absoluteString,
-                        sourceApp: sourceApp,
-                        sourceBundleIdentifier: sourceBundleIdentifier
-                    )
-                )
-                return
+            let png = pasteboard.data(forType: .png)
+            if let data = png ?? pasteboard.data(forType: .tiff) {
+                let isPNG = png != nil
+                let fileURL = store.imagesDirectory.appendingPathComponent(UUID().uuidString + ".png")
+                let job = BackgroundJob { () throws -> Bool in
+                    try autoreleasepool {
+                        let output: Data
+                        if isPNG {
+                            output = data
+                        } else {
+                            guard let bitmap = NSBitmapImageRep(data: data),
+                                  let converted = bitmap.representation(using: .png, properties: [:]) else {
+                                return false
+                            }
+                            output = converted
+                        }
+                        try output.write(to: fileURL, options: .atomic)
+                        return true
+                    }
+                }
+                do {
+                    let written = try await job.value(on: imageQueue)
+                    try Task.checkCancellation()
+                    if written {
+                        store.add(ClipboardItem(
+                            type: .image,
+                            content: fileURL.absoluteString,
+                            sourceApp: sourceApp,
+                            sourceBundleIdentifier: sourceBundleIdentifier
+                        ))
+                        return
+                    }
+                } catch is CancellationError {
+                    // 等待正在进行的写入结束后清理，防止取消后留下未入库文件。
+                    imageQueue.addOperation { try? FileManager.default.removeItem(at: fileURL) }
+                    return
+                } catch {
+                    NSLog("Clipboard image write failed: %@", error.localizedDescription)
+                }
+                // 异步期间剪贴板可能已变，不将新内容归到上一次捕获的来源。
+                guard pasteboard.changeCount == capturedChangeCount else { return }
             }
         }
 
