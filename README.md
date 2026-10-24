@@ -36,13 +36,29 @@ PasteHub 是一个 macOS 状态栏剪贴板工具：自动记录复制内容，�
 
 Apple Silicon Mac 可使用新版 Command Line Tools（Swift 6.2 或更新版本、macOS SDK 26.2 或更新版本）编译，无需安装完整 Xcode：
 
+首次配置本机固定签名：
+
+1. 在 macOS「钥匙串访问 → 证书助理 → 创建证书」中创建 `PasteHub Local Signing`，身份类型选择「自签名根」，证书类型选择「代码签名」。证书及对应私钥保存在登录钥匙串中。
+2. 如需调整信任，仅为该证书的「代码签名」用途设置信任，其他用途保持默认。该证书用于本机开发，不代表 Apple Developer ID 或公证发布身份。
+3. 绑定一次证书：
+
+```bash
+python3 scripts/build_macos.py --configure-signing "PasteHub Local Signing"
+```
+
+该命令将证书的准确 SHA-1 指纹和 Bundle ID 写入已忽略的 `.local-signing.json`；配置文件不含私钥。证书和私钥保留在钥匙串中，后续构建复用同一身份，不重新生成证书。首次签名时如系统提示 `/usr/bin/codesign` 访问此私钥，可选择「始终允许」，供后续构建复用。
+
+正常编译：
+
 ```bash
 python3 scripts/build_macos.py --resources-from /Applications/PasteHub.app
 ```
 
-产物为 `build/PasteHub.app`，采用本机临时签名，可在本机运行。独立 Command Line Tools 不提供 `actool`，因此打包时沿用已有 PasteHub 应用的资源目录（包含 `Assets.car` 和应用图标）。若安装了包含 `actool` 的 Xcode，则直接编译仓库资源。
+产物为 `build/PasteHub.app`。构建前检查固定证书是否可用于代码签名，打包后校验签名证书和稳定的签名身份；证书缺失、类型错误或不可用时直接报错，不退回临时签名。
 
-默认沿用已有应用的 Bundle ID；可通过 `--bundle-id` 指定。替换签名不同的旧应用后，屏幕录制和辅助功能权限可能需要重新授权。
+独立 Command Line Tools 不提供 `actool`，因此打包时沿用已有 PasteHub 应用的资源目录（包含 `Assets.car` 和应用图标）。若安装了包含 `actool` 的 Xcode，则直接编译仓库资源。
+
+默认使用本机签名配置中的 Bundle ID（本项目为 `top.yayalu.PasteHub`），可通过 `--bundle-id` 显式指定。首次从临时签名切换到固定证书后，需重新授予屏幕录制和辅助功能权限；以后保持同一证书、Bundle ID 和安装路径，避免因每次编译的二进制哈希变化导致授权失配。迁移电脑时需迁移原证书及私钥，不能只复制 `.local-signing.json`。
 
 ## 使用说明
 
@@ -112,12 +128,7 @@ python3 scripts/build_macos.py --resources-from /Applications/PasteHub.app
 
 ### 应用闪退或提示无法打开
 
-请在终端依次执行以下命令修复权限和签名：
-
-```bash
-chmod +x /Applications/PasteHub.app/Contents/MacOS/PasteHub
-codesign --force --deep --sign - /Applications/PasteHub.app
-```
+请使用上面的构建命令重新生成应用并替换原安装版本。构建脚本会设置可执行权限并使用已绑定的固定证书签名；重新使用 `codesign --sign -` 会恢复为临时身份，导致现有隐私授权再次失配。
 
 ## 项目结构
 

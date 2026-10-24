@@ -19,6 +19,7 @@ Package.resolved
 *.xcarchive
 
 # Secrets & local config
+.local-signing.json
 .env
 .env.*
 *.env
