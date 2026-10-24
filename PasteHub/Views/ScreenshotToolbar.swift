@@ -46,29 +46,29 @@ struct ScreenshotToolbar: View {
     @Bindable var state: ScreenshotEditorState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 6.4) {
+            HStack(spacing: 3.2) {
                 ForEach(ScreenshotTool.allCases) { tool in
                     icon(tool.symbol, title: tool.title, selected: state.tool == tool,
-                         size: tool == .solid ? 18 : 21) {
+                         size: tool == .solid ? 14.4 : 16.8) {
                         state.tool = state.tool == tool ? nil : tool
                         state.onChange?()
                     }
                 }
-                Divider().frame(height: 22).padding(.horizontal, 4)
+                Divider().frame(width: 0.8, height: 17.6).padding(.horizontal, 3.2)
                 icon("arrow.uturn.backward", title: "撤销（⌘Z）") { state.onUndo?() }
                     .disabled(!state.canUndo)
                 icon("arrow.down.to.line", title: "保存为 PNG") { state.onSave?() }
                 icon("xmark", title: "取消（Esc）", tint: .red) { state.onCancel?() }
                 icon("checkmark", title: "复制截图（Enter）", tint: .green) { state.onCopy?() }
             }
-            .padding(8)
-            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+            .padding(6.4)
+            .background(.white, in: RoundedRectangle(cornerRadius: 9.6))
 
             if let tool = state.tool {
                 let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [3, 6, 9]
-                let diameters: [CGFloat] = tool.isBrush ? [7, 10, 12] : [7, 10, 13]
-                HStack(spacing: 8) {
+                let diameters: [CGFloat] = tool.isBrush ? [5.6, 8, 9.6] : [5.6, 8, 10.4]
+                HStack(spacing: 6.4) {
                     ForEach(widths.indices, id: \.self) { index in
                         let width = widths[index]
                         Button {
@@ -77,7 +77,7 @@ struct ScreenshotToolbar: View {
                         } label: {
                             Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
                                 .frame(width: diameters[index], height: diameters[index])
-                                .frame(width: 36, height: 36)
+                                .frame(width: 28.8, height: 28.8)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -85,47 +85,48 @@ struct ScreenshotToolbar: View {
                         .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
                     }
                     if tool != .mosaic {
-                        Divider().frame(height: 24)
+                        Divider().frame(width: 0.8, height: 19.2)
                         ForEach(state.colors.indices, id: \.self) { index in
                             Button {
                                 state.selectedColorIndex = index
                             } label: {
-                                RoundedRectangle(cornerRadius: 4)
+                                RoundedRectangle(cornerRadius: 3.2)
                                     .fill(Color(nsColor: state.colors[index]))
-                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(.gray.opacity(0.4)))
+                                    .overlay(RoundedRectangle(cornerRadius: 3.2).stroke(.gray.opacity(0.4), lineWidth: 0.8))
                                     .overlay {
                                         if state.selectedColorIndex == index {
                                             Image(systemName: "checkmark")
-                                                .font(.system(size: 14, weight: .bold))
+                                                .font(.system(size: 11.2, weight: .bold))
                                                 .foregroundStyle(index == 1 || index == 6 ? .black : .white)
                                         }
                                     }
-                                    .frame(width: 26, height: 26)
+                                    .frame(width: 20.8, height: 20.8)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(["红色", "黄色", "绿色", "蓝色", "黑色", "灰色", "白色"][index])
                         }
                     }
                 }
-                .padding(10)
-                .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                .padding(8)
+                .background(.white, in: RoundedRectangle(cornerRadius: 9.6))
             }
         }
         .foregroundStyle(Color(nsColor: .darkGray))
         .fixedSize()
-        .padding(4)
+        .padding(3.2)
         .environment(\.colorScheme, .light)
     }
 
-    private func icon(_ symbol: String, title: String, selected: Bool = false, size: CGFloat = 21,
+    private func icon(_ symbol: String, title: String, selected: Bool = false, size: CGFloat = 16.8,
                       tint: Color = Color(nsColor: .darkGray), action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size, weight: .medium))
                 .foregroundStyle(selected ? .blue : tint)
-                .frame(width: 36, height: 36)
+                .frame(width: 28.8, height: 28.8)
                 .background(selected ? Color.blue.opacity(0.12) : .clear,
-                            in: RoundedRectangle(cornerRadius: 8))
+                            in: RoundedRectangle(cornerRadius: 6.4))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(title)
