@@ -320,7 +320,7 @@ final class ScreenshotOverlayView: NSView {
         context.addPath(CGPath(roundedRect: card, cornerWidth: 10, cornerHeight: 10, transform: nil))
         context.fillPath()
         let target = CGRect(x: x + 12, y: y + 12, width: 150, height: 150)
-        let magnification: CGFloat = 7
+        let magnification: CGFloat = 4
         let pixel = pixelPoint
         let sampleRadius = ceil(target.width / (2 * magnification))
         let sampleSize = sampleRadius * 2 + 1
