@@ -7,7 +7,7 @@ final class ScreenshotEditorState {
     var tool: ScreenshotTool?
     var lineWidth: CGFloat = 3
     var colorIndex = 0
-    var brushWidth: CGFloat = 22
+    var brushWidth: CGFloat = 15
     var solidColorIndex = 4
 
     var canUndo = false
@@ -66,7 +66,7 @@ struct ScreenshotToolbar: View {
             .background(.white, in: RoundedRectangle(cornerRadius: 12))
 
             if let tool = state.tool {
-                let widths: [CGFloat] = tool.isBrush ? [14, 22, 29] : [3, 6, 9]
+                let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [3, 6, 9]
                 let diameters: [CGFloat] = tool.isBrush ? [7, 10, 12] : [7, 10, 13]
                 HStack(spacing: 8) {
                     ForEach(widths.indices, id: \.self) { index in
@@ -77,7 +77,8 @@ struct ScreenshotToolbar: View {
                         } label: {
                             Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
                                 .frame(width: diameters[index], height: diameters[index])
-                                .frame(width: 24, height: 28)
+                                .frame(width: 36, height: 36)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")

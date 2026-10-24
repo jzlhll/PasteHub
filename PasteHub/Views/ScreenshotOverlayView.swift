@@ -265,7 +265,7 @@ final class ScreenshotOverlayView: NSView {
     private func updateToolbar() {
         guard let selection, dragMode == nil else { toolbar.isHidden = true; return }
         // 预留二级面板高度，底部空间不足时整体放到选区上方或屏幕内。
-        let size = CGSize(width: 484, height: editor.tool != nil ? 116 : 60)
+        let size = CGSize(width: 484, height: editor.tool != nil ? 124 : 60)
         let x = min(max(4, selection.maxX - size.width), max(4, bounds.width - size.width - 4))
         var y = selection.maxY + 10
         if y + size.height > bounds.height - 4 { y = selection.minY - size.height - 10 }
