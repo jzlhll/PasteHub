@@ -558,6 +558,7 @@ private struct GeneralTab: View {
 private struct HotkeyTab: View {
     var settings: SettingsManager
     @State private var isAccessibilityTrusted = AXIsProcessTrusted()
+    @State private var hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
     @State private var lastCheckedAt = Date()
 
     private var executablePath: String {
@@ -598,37 +599,19 @@ private struct HotkeyTab: View {
                     SettingsSeparator()
 
                     SettingsRow(
-                        title: "打开设置窗口",
-                        subtitle: "全局触发，默认未设置。点击录制后按下新的快捷键组合。"
+                        title: "截图 / 取色",
+                        subtitle: "默认 ⌥⇧A。Esc 取消，Shift 切换 HEX / RGB，⌘C 复制色值。"
                     ) {
-                        OptionalHotkeyRecorder(
-                            displayString: settings.showSettingsHotkeyDisplayString,
-                            isSet: settings.showSettingsHotkey != nil,
+                        HotkeyRecorderButton(
+                            displayString: settings.screenshotHotkeyDisplayString,
                             onRecorded: { code, mods in
-                                settings.setShowSettingsHotkey(keyCode: code, modifiers: mods)
-                            },
-                            onClear: {
-                                settings.clearShowSettingsHotkey()
+                                settings.setScreenshotHotkey(keyCode: code, modifiers: mods)
                             }
                         )
                     }
 
-                    SettingsSeparator()
-
-                    SettingsRow(
-                        title: "清空历史记录",
-                        subtitle: "全局触发，默认未设置。建议使用不易误触的组合。"
-                    ) {
-                        OptionalHotkeyRecorder(
-                            displayString: settings.clearHistoryHotkeyDisplayString,
-                            isSet: settings.clearHistoryHotkey != nil,
-                            onRecorded: { code, mods in
-                                settings.setClearHistoryHotkey(keyCode: code, modifiers: mods)
-                            },
-                            onClear: {
-                                settings.clearHistoryHotkeyBinding()
-                            }
-                        )
+                    if let error = settings.screenshotHotkeyRegistrationError {
+                        Text(error).font(.system(size: 12)).foregroundStyle(.red)
                     }
 
                     SettingsSeparator()
@@ -647,6 +630,26 @@ private struct HotkeyTab: View {
                     ShortcutRow(label: "完成键入条目", shortcut: "单击卡片")
                     ShortcutRow(label: "重新复制 / 标签 / 删除", shortcut: "卡片按钮或右键菜单")
                 }
+            }
+
+            SettingsCard(
+                title: "截图权限",
+                subtitle: "截图和取色需要屏幕录制权限；不采集音频。"
+            ) {
+                SettingsRow(title: "屏幕录制权限") {
+                    Text(hasScreenRecordingPermission ? "已授权" : "未授权")
+                        .foregroundStyle(hasScreenRecordingPermission ? .green : .red)
+                }
+                HStack(spacing: 10) {
+                    Button("刷新状态") {
+                        hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
+                    }
+                    Button("打开屏幕录制设置") {
+                        ScreenshotService.openScreenRecordingSettings()
+                    }
+                }
+                .buttonStyle(.bordered)
+                SettingsHint(text: "首次截图会请求授权。授权后若仍无法截图，请重启 PasteHub；应用签名、Bundle ID 或安装路径改变后可能需要重新授权。保存时通过系统窗口选择文件和目录。")
             }
 
             SettingsCard(
@@ -714,6 +717,10 @@ private struct HotkeyTab: View {
         }
         .onAppear {
             refreshAccessibilityState()
+            hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
         }
     }
 
@@ -760,30 +767,6 @@ private struct ShortcutRow: View {
                 )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct OptionalHotkeyRecorder: View {
-    let displayString: String
-    let isSet: Bool
-    let onRecorded: (UInt16, UInt) -> Void
-    let onClear: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            HotkeyRecorderButton(
-                displayString: displayString,
-                onRecorded: onRecorded
-            )
-
-            if isSet {
-                Button("清除") {
-                    onClear()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-        }
     }
 }
 

@@ -112,45 +112,15 @@ final class SettingsManager {
         didSet { UserDefaults.standard.set(Int(hotkeyModifiers), forKey: "hotkeyModifiers") }
     }
 
-    private(set) var showSettingsHotkeyKeyCode: UInt16? {
-        didSet {
-            if let showSettingsHotkeyKeyCode {
-                UserDefaults.standard.set(Int(showSettingsHotkeyKeyCode), forKey: "showSettingsHotkeyKeyCode")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "showSettingsHotkeyKeyCode")
-            }
-        }
+    private(set) var screenshotHotkeyKeyCode: UInt16 {
+        didSet { UserDefaults.standard.set(Int(screenshotHotkeyKeyCode), forKey: "screenshotHotkeyKeyCode") }
     }
 
-    private(set) var showSettingsHotkeyModifiers: UInt {
-        didSet {
-            if showSettingsHotkeyKeyCode == nil {
-                UserDefaults.standard.removeObject(forKey: "showSettingsHotkeyModifiers")
-            } else {
-                UserDefaults.standard.set(Int(showSettingsHotkeyModifiers), forKey: "showSettingsHotkeyModifiers")
-            }
-        }
+    private(set) var screenshotHotkeyModifiers: UInt {
+        didSet { UserDefaults.standard.set(Int(screenshotHotkeyModifiers), forKey: "screenshotHotkeyModifiers") }
     }
 
-    private(set) var clearHistoryHotkeyKeyCode: UInt16? {
-        didSet {
-            if let clearHistoryHotkeyKeyCode {
-                UserDefaults.standard.set(Int(clearHistoryHotkeyKeyCode), forKey: "clearHistoryHotkeyKeyCode")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "clearHistoryHotkeyKeyCode")
-            }
-        }
-    }
-
-    private(set) var clearHistoryHotkeyModifiers: UInt {
-        didSet {
-            if clearHistoryHotkeyKeyCode == nil {
-                UserDefaults.standard.removeObject(forKey: "clearHistoryHotkeyModifiers")
-            } else {
-                UserDefaults.standard.set(Int(clearHistoryHotkeyModifiers), forKey: "clearHistoryHotkeyModifiers")
-            }
-        }
-    }
+    var screenshotHotkeyRegistrationError: String?
 
     var excludedApps: [ExcludedApp] {
         didSet {
@@ -239,28 +209,16 @@ final class SettingsManager {
             hotkeyModifiers = NSEvent.ModifierFlags([.command, .shift]).rawValue
         }
 
-        if let v = d.object(forKey: "showSettingsHotkeyKeyCode") as? Int, v >= 0 {
-            showSettingsHotkeyKeyCode = UInt16(v)
-            if let mods = d.object(forKey: "showSettingsHotkeyModifiers") as? Int, mods > 0 {
-                showSettingsHotkeyModifiers = UInt(mods)
-            } else {
-                showSettingsHotkeyModifiers = NSEvent.ModifierFlags.command.rawValue
-            }
+        if let code = d.object(forKey: "screenshotHotkeyKeyCode") as? Int,
+           code >= 0, code <= Int(UInt16.max) {
+            screenshotHotkeyKeyCode = UInt16(code)
         } else {
-            showSettingsHotkeyKeyCode = nil
-            showSettingsHotkeyModifiers = 0
+            screenshotHotkeyKeyCode = 0
         }
-
-        if let v = d.object(forKey: "clearHistoryHotkeyKeyCode") as? Int, v >= 0 {
-            clearHistoryHotkeyKeyCode = UInt16(v)
-            if let mods = d.object(forKey: "clearHistoryHotkeyModifiers") as? Int, mods > 0 {
-                clearHistoryHotkeyModifiers = UInt(mods)
-            } else {
-                clearHistoryHotkeyModifiers = NSEvent.ModifierFlags.command.rawValue
-            }
+        if let modifiers = d.object(forKey: "screenshotHotkeyModifiers") as? Int, modifiers > 0 {
+            screenshotHotkeyModifiers = UInt(modifiers)
         } else {
-            clearHistoryHotkeyKeyCode = nil
-            clearHistoryHotkeyModifiers = 0
+            screenshotHotkeyModifiers = NSEvent.ModifierFlags([.option, .shift]).rawValue
         }
 
         if let data = d.data(forKey: "excludedApps"),
@@ -314,28 +272,14 @@ final class SettingsManager {
         onHotkeyChanged?()
     }
 
-    func setShowSettingsHotkey(keyCode: UInt16, modifiers: UInt) {
-        showSettingsHotkeyKeyCode = keyCode
-        showSettingsHotkeyModifiers = modifiers
+    func setScreenshotHotkey(keyCode: UInt16, modifiers: UInt) {
+        screenshotHotkeyKeyCode = keyCode
+        screenshotHotkeyModifiers = modifiers
         onHotkeyChanged?()
     }
 
-    func clearShowSettingsHotkey() {
-        showSettingsHotkeyKeyCode = nil
-        showSettingsHotkeyModifiers = 0
-        onHotkeyChanged?()
-    }
-
-    func setClearHistoryHotkey(keyCode: UInt16, modifiers: UInt) {
-        clearHistoryHotkeyKeyCode = keyCode
-        clearHistoryHotkeyModifiers = modifiers
-        onHotkeyChanged?()
-    }
-
-    func clearHistoryHotkeyBinding() {
-        clearHistoryHotkeyKeyCode = nil
-        clearHistoryHotkeyModifiers = 0
-        onHotkeyChanged?()
+    var screenshotHotkeyDisplayString: String {
+        Self.displayString(for: screenshotHotkeyKeyCode, modifiers: screenshotHotkeyModifiers)
     }
 
     func isAppExcluded(bundleIdentifier: String?) -> Bool {
@@ -345,26 +289,6 @@ final class SettingsManager {
 
     var hotkeyDisplayString: String {
         Self.displayString(for: hotkeyKeyCode, modifiers: hotkeyModifiers)
-    }
-
-    var showSettingsHotkey: (keyCode: UInt16, modifiers: UInt)? {
-        guard let showSettingsHotkeyKeyCode, showSettingsHotkeyModifiers > 0 else { return nil }
-        return (showSettingsHotkeyKeyCode, showSettingsHotkeyModifiers)
-    }
-
-    var clearHistoryHotkey: (keyCode: UInt16, modifiers: UInt)? {
-        guard let clearHistoryHotkeyKeyCode, clearHistoryHotkeyModifiers > 0 else { return nil }
-        return (clearHistoryHotkeyKeyCode, clearHistoryHotkeyModifiers)
-    }
-
-    var showSettingsHotkeyDisplayString: String {
-        guard let hotkey = showSettingsHotkey else { return "未设置" }
-        return Self.displayString(for: hotkey.keyCode, modifiers: hotkey.modifiers)
-    }
-
-    var clearHistoryHotkeyDisplayString: String {
-        guard let hotkey = clearHistoryHotkey else { return "未设置" }
-        return Self.displayString(for: hotkey.keyCode, modifiers: hotkey.modifiers)
     }
 
     nonisolated private static func displayString(for keyCode: UInt16, modifiers: UInt) -> String {
