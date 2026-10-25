@@ -136,8 +136,18 @@ final class ScreenshotService {
             }
             return event
         }
+        // 文字输入期间由原生编辑器处理输入法、换行、复制、粘贴与撤销。
+        if let view = activeView, view.isEditingText {
+            return view.handleTextKeyEvent(event) ? nil : event
+        }
         if event.keyCode == 53 { cancel(); return nil }
         guard let view = activeView else { return event }
+        if event.keyCode == 17, view.selection != nil,
+           event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
+            view.editor.tool = view.editor.tool == .text ? nil : .text
+            view.editor.onChange?()
+            return nil
+        }
         if event.modifierFlags.contains(.command), event.keyCode == 8 {
             if view.selection != nil {
                 copyScreenshot(from: view)

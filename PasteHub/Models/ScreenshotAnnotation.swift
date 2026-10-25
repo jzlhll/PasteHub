@@ -1,7 +1,7 @@
 import AppKit
 
 enum ScreenshotTool: String, CaseIterable, Identifiable {
-    case rectangle, ellipse, pen, line, arrow, mosaic, solid
+    case rectangle, ellipse, pen, line, arrow, mosaic, solid, text
 
     nonisolated var id: String { rawValue }
     var isBrush: Bool { self == .mosaic || self == .solid }
@@ -15,6 +15,7 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
         case .arrow: return "箭头"
         case .mosaic: return "马赛克"
         case .solid: return "纯色涂抹"
+        case .text: return "文字（T）"
         }
     }
     var symbol: String {
@@ -26,15 +27,43 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
         case .arrow: return "arrow.up.right"
         case .mosaic: return "square.grid.3x3.fill"
         case .solid: return "paintbrush.fill"
+        case .text: return "t"
         }
     }
 }
 
 struct ScreenshotAnnotation {
     let tool: ScreenshotTool
-    let color: NSColor
+    var color: NSColor
     let lineWidth: CGFloat
     var points: [CGPoint]
+    var text = ""
+    var fontSize: CGFloat = 24
+    var textWidth: CGFloat = 1
+
+    var textAttributes: [NSAttributedString.Key: Any] {
+        [.font: NSFont.systemFont(ofSize: fontSize), .foregroundColor: color]
+    }
+
+    // 输入框和导出共用 TextKit 排版，保持中文、换行和字形位置一致。
+    func makeTextLayout() -> (NSTextStorage, NSLayoutManager, NSTextContainer) {
+        let storage = NSTextStorage(string: text, attributes: textAttributes)
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: CGSize(width: textWidth, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        layout.addTextContainer(container)
+        storage.addLayoutManager(layout)
+        layout.ensureLayout(for: container)
+        return (storage, layout, container)
+    }
+
+    var textRect: CGRect {
+        guard let point = points.first else { return .zero }
+        let (storage, layout, container) = makeTextLayout()
+        return withExtendedLifetime(storage) {
+            layout.usedRect(for: container).offsetBy(dx: point.x, dy: point.y)
+        }
+    }
 
     var rect: CGRect {
         guard let first = points.first, let last = points.last else { return .zero }
@@ -52,6 +81,15 @@ struct ScreenshotAnnotation {
         context.setLineCap(.round)
         context.setLineJoin(.round)
         switch tool {
+        case .text:
+            let (storage, layout, container) = makeTextLayout()
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
+            let range = layout.glyphRange(for: container)
+            withExtendedLifetime(storage) {
+                layout.drawGlyphs(forGlyphRange: range, at: first)
+            }
+            NSGraphicsContext.restoreGraphicsState()
         case .rectangle:
             context.stroke(rect)
         case .ellipse:

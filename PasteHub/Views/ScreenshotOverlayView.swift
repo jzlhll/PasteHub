@@ -3,7 +3,7 @@ import SwiftUI
 
 // 在冻结屏幕上完成取色、选区调整和标注，工具栏与蒙层不进入最终图片。
 @MainActor
-final class ScreenshotOverlayView: NSView {
+final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     let editor = ScreenshotEditorState()
     private(set) var selection: CGRect?
     var onActivate: (() -> Void)?
@@ -13,6 +13,12 @@ final class ScreenshotOverlayView: NSView {
     private let mosaic: CGImage
     private let bitmap: NSBitmapImageRep
     private var annotations: [ScreenshotAnnotation] = []
+    private var undoHistory: [[ScreenshotAnnotation]] = []
+    private var textInputClip: ScreenshotTextClipView?
+    private var textInput: NSTextView?
+    private var textInputStorage: NSTextStorage?
+    private var textAnnotation: ScreenshotAnnotation?
+    private var editingTextIndex: Int?
     private var pendingAnnotation: ScreenshotAnnotation?
     private var pendingSelection: CGRect?
     private let minimumSelectionPixels: CGFloat = 10
@@ -39,6 +45,7 @@ final class ScreenshotOverlayView: NSView {
         toolbar.isHidden = true
         addSubview(toolbar)
         editor.onChange = { [weak self] in
+            self?.updateTextStyle()
             self?.updateToolbar()
             self?.updatePointerCursor()
             self?.needsDisplay = true
@@ -87,6 +94,8 @@ final class ScreenshotOverlayView: NSView {
     private func updatePointerCursor() {
         if !toolbar.isHidden, toolbar.frame.contains(pointer) {
             NSCursor.arrow.set()
+        } else if editor.tool == .text, selection?.contains(pointer) == true, handleIndex(at: pointer) == nil {
+            NSCursor.iBeam.set()
         } else if selection == nil || editor.tool != nil || handleIndex(at: pointer) != nil {
             NSCursor.crosshair.set()
         } else if selection?.contains(pointer) == true {
@@ -120,6 +129,7 @@ final class ScreenshotOverlayView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         // 禁用按钮及工具栏空白处的事件也可能向上传递，不能据此开始框选。
         guard bounds.contains(point), toolbar.isHidden || !toolbar.frame.contains(point) else { return }
+        finishTextEditing()
         pointer = bounded(point)
         dragStart = pointer
         onActivate?()
@@ -132,7 +142,10 @@ final class ScreenshotOverlayView: NSView {
             originalSelection = selection
             dragMode = .resize(index)
         } else if let selection, selection.contains(pointer) {
-            if let tool = editor.tool {
+            if editor.tool == .text {
+                beginTextEditing(at: pointer)
+                return
+            } else if let tool = editor.tool {
                 dragMode = .draw
                 pendingAnnotation = ScreenshotAnnotation(tool: tool, color: editor.color,
                                                          lineWidth: editor.activeLineWidth, points: [pointer])
@@ -177,6 +190,13 @@ final class ScreenshotOverlayView: NSView {
             for index in annotations.indices {
                 annotations[index].points = annotations[index].points.map { CGPoint(x: $0.x + dx, y: $0.y + dy) }
             }
+            for historyIndex in undoHistory.indices {
+                for index in undoHistory[historyIndex].indices {
+                    undoHistory[historyIndex][index].points = undoHistory[historyIndex][index].points.map {
+                        CGPoint(x: $0.x + dx, y: $0.y + dy)
+                    }
+                }
+            }
             selection = next
         case .resize(let index):
             var left = originalSelection.minX, right = originalSelection.maxX
@@ -199,19 +219,22 @@ final class ScreenshotOverlayView: NSView {
             selection = candidate
             onSelect?()
         } else if let pendingAnnotation {
+            undoHistory.append(annotations)
             annotations.append(pendingAnnotation)
             self.pendingAnnotation = nil
         }
         pendingSelection = nil
         self.dragMode = nil
-        editor.canUndo = !annotations.isEmpty
+        editor.canUndo = !undoHistory.isEmpty
         updateToolbar()
         updatePointerCursor()
         needsDisplay = true
     }
 
     func resetSelection() {
+        finishTextEditing(commit: false)
         selection = nil
+        undoHistory.removeAll()
         annotations.removeAll()
         pendingAnnotation = nil
         pendingSelection = nil
@@ -223,16 +246,177 @@ final class ScreenshotOverlayView: NSView {
     }
 
     func undoAnnotation() {
-        guard !annotations.isEmpty, dragMode == nil else { return }
-        annotations.removeLast()
-        editor.canUndo = !annotations.isEmpty
+        guard dragMode == nil else { return }
+        finishTextEditing()
+        guard let previous = undoHistory.popLast() else { return }
+        annotations = previous
+        editor.canUndo = !undoHistory.isEmpty
         needsDisplay = true
     }
 
     func exportImage() -> CGImage? {
+        finishTextEditing()
         guard let selection, isValidSelection(selection) else { return nil }
         return ScreenshotRaster.export(image: image, mosaic: mosaic, canvasSize: bounds.size,
                                        selection: selection, annotations: annotations)
+    }
+
+    var isEditingText: Bool { textInput != nil }
+
+    func handleTextKeyEvent(_ event: NSEvent) -> Bool {
+        guard let input = textInput, event.modifierFlags.contains(.command),
+              event.modifierFlags.intersection([.control, .option]).isEmpty else { return false }
+        switch event.keyCode {
+        case 0: input.selectAll(nil)
+        case 7: input.cut(nil)
+        case 8: input.copy(nil)
+        case 9: input.pasteAsPlainText(nil)
+        case 6:
+            if event.modifierFlags.contains(.shift) { input.undoManager?.redo() }
+            else { input.undoManager?.undo() }
+        default: return false
+        }
+        return true
+    }
+
+    private func beginTextEditing(at point: CGPoint) {
+        guard let selection else { return }
+        let index = annotations.indices.reversed().first {
+            annotations[$0].tool == .text && annotations[$0].textRect.contains(point)
+        }
+        let annotation: ScreenshotAnnotation
+        if let index {
+            annotation = annotations[index]
+            editor.fontSize = annotation.fontSize
+            if let colorIndex = editor.colors.firstIndex(where: { $0.isEqual(annotation.color) }) {
+                editor.selectedColorIndex = colorIndex
+            }
+        } else {
+            let x = min(point.x, selection.maxX - min(120, selection.width))
+            let y = min(point.y, selection.maxY - min(editor.fontSize * 1.5, selection.height))
+            annotation = ScreenshotAnnotation(tool: .text, color: editor.color, lineWidth: 0,
+                                              points: [CGPoint(x: x, y: y)], fontSize: editor.fontSize,
+                                              textWidth: selection.maxX - x)
+        }
+        editingTextIndex = index
+        textAnnotation = annotation
+        let (storage, _, container) = annotation.makeTextLayout()
+        textInputStorage = storage
+        let input = ScreenshotTextInputView(frame: .zero, textContainer: container)
+        input.isRichText = false
+        input.importsGraphics = false
+        input.drawsBackground = false
+        input.textContainerInset = .zero
+        input.isHorizontallyResizable = false
+        input.isVerticallyResizable = false
+        input.allowsUndo = true
+        input.isAutomaticQuoteSubstitutionEnabled = false
+        input.isAutomaticDashSubstitutionEnabled = false
+        input.isAutomaticTextReplacementEnabled = false
+        input.isAutomaticSpellingCorrectionEnabled = false
+        container.widthTracksTextView = false
+        container.heightTracksTextView = false
+        input.font = .systemFont(ofSize: annotation.fontSize)
+        input.textColor = annotation.color
+        input.insertionPointColor = annotation.color
+        input.typingAttributes = annotation.textAttributes
+        input.delegate = self
+        input.setAccessibilityLabel("截图文字，Enter 完成，Shift + Enter 换行，Esc 取消编辑")
+        input.wantsLayer = true
+        input.layer?.borderWidth = 1
+        input.layer?.borderColor = NSColor.systemBlue.withAlphaComponent(0.7).cgColor
+        textInput = input
+        let clip = ScreenshotTextClipView(frame: selection)
+        clip.wantsLayer = true
+        clip.layer?.masksToBounds = true
+        clip.addSubview(input)
+        textInputClip = clip
+        addSubview(clip, positioned: .below, relativeTo: toolbar)
+        updateTextInputFrame()
+        window?.makeFirstResponder(input)
+        input.setSelectedRange(NSRange(location: (input.string as NSString).length, length: 0))
+        editor.canUndo = true
+        needsDisplay = true
+    }
+
+    private func updateTextStyle() {
+        guard let input = textInput, var annotation = textAnnotation else { return }
+        guard editor.tool == .text else { finishTextEditing(); return }
+        annotation.fontSize = editor.fontSize
+        annotation.color = editor.color
+        textAnnotation = annotation
+        input.font = .systemFont(ofSize: annotation.fontSize)
+        input.textColor = annotation.color
+        input.insertionPointColor = annotation.color
+        input.typingAttributes = annotation.textAttributes
+        updateTextInputFrame()
+        window?.makeFirstResponder(input)
+    }
+
+    private func updateTextInputFrame() {
+        guard let input = textInput, let annotation = textAnnotation,
+              let origin = annotation.points.first, let selection,
+              let layout = input.layoutManager, let container = input.textContainer else { return }
+        container.size = CGSize(width: annotation.textWidth, height: .greatestFiniteMagnitude)
+        layout.ensureLayout(for: container)
+        let used = layout.usedRect(for: container)
+        let width = min(selection.maxX - origin.x, min(annotation.textWidth, max(40, ceil(used.maxX) + 2)))
+        let height = min(selection.maxY - origin.y,
+                         max(annotation.fontSize * 1.5, ceil(max(used.maxY, layout.extraLineFragmentRect.maxY))))
+        input.frame = CGRect(x: origin.x - selection.minX, y: origin.y - selection.minY,
+                             width: width, height: height)
+        // 输入框尺寸变化后保持排版宽度不变，避免预览和导出的换行不同。
+        container.size = CGSize(width: annotation.textWidth, height: .greatestFiniteMagnitude)
+    }
+
+    func textDidChange(_ notification: Notification) {
+        updateTextInputFrame()
+    }
+
+    func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            if textView.hasMarkedText() || NSEvent.modifierFlags.contains(.shift) { return false }
+            finishTextEditing()
+            return true
+        }
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            if textView.hasMarkedText() { return false }
+            finishTextEditing(commit: false)
+            return true
+        }
+        return false
+    }
+
+    private func finishTextEditing(commit: Bool = true) {
+        guard let input = textInput, var annotation = textAnnotation else { return }
+        if commit { input.unmarkText() }
+        annotation.text = input.string
+        let index = editingTextIndex
+        textInput = nil
+        textAnnotation = nil
+        editingTextIndex = nil
+        if window?.firstResponder === input { window?.makeFirstResponder(self) }
+        input.delegate = nil
+        input.removeFromSuperview()
+        textInputClip?.removeFromSuperview()
+        textInputClip = nil
+        textInputStorage = nil
+        if commit {
+            let hasText = !annotation.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if let index {
+                let previous = annotations[index]
+                if previous.text != annotation.text || previous.fontSize != annotation.fontSize
+                    || !previous.color.isEqual(annotation.color) {
+                    undoHistory.append(annotations)
+                    if hasText { annotations[index] = annotation } else { annotations.remove(at: index) }
+                }
+            } else if hasText {
+                undoHistory.append(annotations)
+                annotations.append(annotation)
+            }
+        }
+        editor.canUndo = !undoHistory.isEmpty
+        needsDisplay = true
     }
 
     private func isValidSelection(_ rect: CGRect) -> Bool {
@@ -289,7 +473,9 @@ final class ScreenshotOverlayView: NSView {
             if pendingSelection == nil {
                 context.saveGState()
                 context.clip(to: selection)
-                for annotation in annotations { annotation.draw(in: context, mosaic: mosaic, canvasSize: bounds.size) }
+                for (index, annotation) in annotations.enumerated() where index != editingTextIndex {
+                    annotation.draw(in: context, mosaic: mosaic, canvasSize: bounds.size)
+                }
                 pendingAnnotation?.draw(in: context, mosaic: mosaic, canvasSize: bounds.size)
                 context.restoreGState()
             }
@@ -391,4 +577,20 @@ final class ScreenshotOverlayView: NSView {
             .font: NSFont.monospacedSystemFont(ofSize: size, weight: .medium), .foregroundColor: NSColor.white
         ])
     }
+}
+
+// 将原生文字输入限制在截图选区内，空白位置继续交给画布处理。
+private final class ScreenshotTextClipView: NSView {
+    override var isFlipped: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
+}
+
+// 每次文字编辑使用独立撤销栈，避免撤销命中已经结束的输入框。
+private final class ScreenshotTextInputView: NSTextView {
+    private let textUndoManager = UndoManager()
+    override var undoManager: UndoManager? { textUndoManager }
 }

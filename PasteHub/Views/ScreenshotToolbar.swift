@@ -5,10 +5,22 @@ import AppKit
 @Observable
 final class ScreenshotEditorState {
     var tool: ScreenshotTool?
-    var lineWidth: CGFloat = 2
-    var colorIndex = 0
-    var brushWidth: CGFloat = 15
-    var solidColorIndex = 4
+    var lineWidth: CGFloat = 2 {
+        didSet { UserDefaults.standard.set(Double(lineWidth), forKey: "screenshotLineWidth") }
+    }
+    var colorIndex = 0 {
+        didSet { UserDefaults.standard.set(colorIndex, forKey: "screenshotColorIndex") }
+    }
+    var brushWidth: CGFloat = 15 {
+        didSet { UserDefaults.standard.set(Double(brushWidth), forKey: "screenshotBrushWidth") }
+    }
+    var solidColorIndex = 4 {
+        didSet { UserDefaults.standard.set(solidColorIndex, forKey: "screenshotSolidColorIndex") }
+    }
+    var fontSize: CGFloat = 24 {
+        didSet { UserDefaults.standard.set(Double(fontSize), forKey: "screenshotFontSize") }
+    }
+    let fontSizes: [CGFloat] = [14, 18, 24, 32, 48]
 
     var canUndo = false
     var onChange: (() -> Void)?
@@ -24,6 +36,20 @@ final class ScreenshotEditorState {
         NSColor(srgbRed: 0.20, green: 0.41, blue: 0.98, alpha: 1),
         .black, NSColor(srgbRed: 0.56, green: 0.58, blue: 0.62, alpha: 1), .white
     ]
+
+    init() {
+        let defaults = UserDefaults.standard
+        let width = CGFloat(defaults.double(forKey: "screenshotLineWidth"))
+        lineWidth = [2, 4, 6].contains(width) ? width : 2
+        let diameter = CGFloat(defaults.double(forKey: "screenshotBrushWidth"))
+        brushWidth = [9, 15, 21].contains(diameter) ? diameter : 15
+        let index = defaults.integer(forKey: "screenshotColorIndex")
+        colorIndex = colors.indices.contains(index) ? index : 0
+        let solidIndex = defaults.object(forKey: "screenshotSolidColorIndex") as? Int ?? 4
+        solidColorIndex = colors.indices.contains(solidIndex) ? solidIndex : 4
+        let size = CGFloat(defaults.double(forKey: "screenshotFontSize"))
+        fontSize = fontSizes.contains(size) ? size : 24
+    }
 
     var activeLineWidth: CGFloat {
         get { tool?.isBrush == true ? brushWidth : lineWidth }
@@ -71,26 +97,47 @@ struct ScreenshotToolbar: View {
                 let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [2, 4, 6]
                 let diameters: [CGFloat] = tool.isBrush ? [5.6, 8, 9.6] : [4.8, 6.4, 8]
                 HStack(spacing: 0) {
-                    ForEach(widths.indices, id: \.self) { index in
-                        let width = widths[index]
-                        Button {
-                            state.activeLineWidth = width
-                            state.onChange?()
-                        } label: {
-                            Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
-                                .frame(width: diameters[index], height: diameters[index])
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44.8)
-                                .contentShape(Rectangle())
+                    if tool == .text {
+                        ForEach(state.fontSizes, id: \.self) { size in
+                            Button {
+                                state.fontSize = size
+                                state.onChange?()
+                            } label: {
+                                Text("\(Int(size))")
+                                    .font(.system(size: 12, weight: state.fontSize == size ? .bold : .regular))
+                                    .foregroundStyle(state.fontSize == size ? .blue : .gray)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44.8)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("字号 \(Int(size))")
+                            .accessibilityLabel("字号 \(Int(size))")
+                            .accessibilityAddTraits(state.fontSize == size ? .isSelected : [])
                         }
-                        .buttonStyle(.plain)
-                        .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
-                        .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                    } else {
+                        ForEach(widths.indices, id: \.self) { index in
+                            let width = widths[index]
+                            Button {
+                                state.activeLineWidth = width
+                                state.onChange?()
+                            } label: {
+                                Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
+                                    .frame(width: diameters[index], height: diameters[index])
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44.8)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                            .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                        }
                     }
                     if tool != .mosaic {
                         ForEach(state.colors.indices, id: \.self) { index in
                             Button {
                                 state.selectedColorIndex = index
+                                state.onChange?()
                             } label: {
                                 RoundedRectangle(cornerRadius: 3.2)
                                     .fill(Color(nsColor: state.colors[index]))
@@ -130,7 +177,10 @@ struct ScreenshotToolbar: View {
     private func icon(_ symbol: String, title: String, selected: Bool = false, size: CGFloat = 16.8,
                       tint: Color = Color(nsColor: .darkGray), action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
+            Group {
+                if symbol == "t" { Text("T") }
+                else { Image(systemName: symbol) }
+            }
                 .font(.system(size: size, weight: .medium))
                 .foregroundStyle(selected ? .blue : tint)
                 .frame(width: 28.8, height: 28.8)
