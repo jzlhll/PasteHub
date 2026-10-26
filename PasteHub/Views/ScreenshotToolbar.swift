@@ -20,7 +20,7 @@ final class ScreenshotEditorState {
     var fontSize: CGFloat = 24 {
         didSet { UserDefaults.standard.set(Double(fontSize), forKey: "screenshotFontSize") }
     }
-    let fontSizes: [CGFloat] = stride(from: 12, through: 54, by: 3).map { CGFloat($0) } + [56]
+    let fontSizes: [CGFloat] = [12, 18, 24, 32, 48]
 
     var canUndo = false
     var onChange: (() -> Void)?
@@ -72,7 +72,6 @@ final class ScreenshotEditorState {
 
 struct ScreenshotToolbar: View {
     @Bindable var state: ScreenshotEditorState
-    @State private var isAdjustingFontSize = false
 
     private static let buttonWidth: CGFloat = 34
     private static let rowHeight: CGFloat = 46
@@ -117,26 +116,24 @@ struct ScreenshotToolbar: View {
                 let diameters: [CGFloat] = tool.isBrush ? [8, 10, 12] : [7, 8, 10]
                 HStack(spacing: 0) {
                     if tool == .text {
-                        Slider(
-                            value: fontSizeIndex,
-                            in: 0...Double(state.fontSizes.count - 1),
-                            step: 1,
-                            label: { EmptyView() },
-                            currentValueLabel: {
-                                if isAdjustingFontSize {
-                                    Text("\(Int(state.fontSize))")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .monospacedDigit()
-                                }
-                            },
-                            tick: { SliderTick($0) },
-                            onEditingChanged: { isAdjustingFontSize = $0 }
-                        )
-                        .tint(Color(nsColor: NSColor(white: 0.82, alpha: 1)))
-                        .accessibilityLabel("字号")
-                        .accessibilityValue("\(Int(state.fontSize))号")
-                        .padding(.horizontal, 12)
-                        .frame(width: Self.contentWidth / 2, height: Self.optionsHeight)
+                        ForEach(state.fontSizes, id: \.self) { size in
+                            Button {
+                                state.fontSize = size
+                                state.onChange?()
+                            } label: {
+                                Text("\(Int(size))")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .monospacedDigit()
+                                    .foregroundStyle(state.fontSize == size ? .blue : .gray)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: Self.optionsHeight)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("字号 \(Int(size))")
+                            .accessibilityLabel("字号 \(Int(size))")
+                            .accessibilityAddTraits(state.fontSize == size ? .isSelected : [])
+                        }
                     } else {
                         ForEach(widths.indices, id: \.self) { index in
                             let width = widths[index]
@@ -194,25 +191,6 @@ struct ScreenshotToolbar: View {
         .fixedSize()
         .padding(Self.outerPadding)
         .environment(\.colorScheme, .light)
-    }
-
-    private var fontSizeIndex: Binding<Double> {
-        Binding(
-            get: {
-                let index = state.fontSizes.indices.min(by: {
-                    abs(state.fontSizes[$0] - state.fontSize) < abs(state.fontSizes[$1] - state.fontSize)
-                }) ?? 0
-                return Double(index)
-            },
-            set: { value in
-                let index = Int(value.rounded())
-                guard state.fontSizes.indices.contains(index) else { return }
-                let size = state.fontSizes[index]
-                guard state.fontSize != size else { return }
-                state.fontSize = size
-                state.onChange?()
-            }
-        )
     }
 
     // 按字形的宽高和实心面积校准视觉大小，保持按钮点击区域一致。
