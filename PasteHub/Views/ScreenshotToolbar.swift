@@ -11,8 +11,11 @@ final class ScreenshotEditorState {
     var colorIndex = 0 {
         didSet { UserDefaults.standard.set(colorIndex, forKey: "screenshotColorIndex") }
     }
-    var brushWidth: CGFloat = 15 {
+    var brushWidth: CGFloat = 13 {
         didSet { UserDefaults.standard.set(Double(brushWidth), forKey: "screenshotBrushWidth") }
+    }
+    var mosaicWidth: CGFloat = 12 {
+        didSet { UserDefaults.standard.set(Double(mosaicWidth), forKey: "screenshotMosaicWidth") }
     }
     var solidColorIndex = 4 {
         didSet { UserDefaults.standard.set(solidColorIndex, forKey: "screenshotSolidColorIndex") }
@@ -20,6 +23,9 @@ final class ScreenshotEditorState {
     var fontSize: CGFloat = 24 {
         didSet { UserDefaults.standard.set(Double(fontSize), forKey: "screenshotFontSize") }
     }
+    let lineWidths: [CGFloat] = [2, 3, 4, 6]
+    let brushWidths: [CGFloat] = [9, 13, 17, 21]
+    let mosaicWidths: [CGFloat] = [9, 12, 18, 24]
     let fontSizes: [CGFloat] = [12, 18, 24, 32, 48]
 
     var canUndo = false
@@ -40,23 +46,32 @@ final class ScreenshotEditorState {
     init() {
         let defaults = UserDefaults.standard
         let width = CGFloat(defaults.double(forKey: "screenshotLineWidth"))
-        lineWidth = [2, 4, 6].contains(width) ? width : 2
+        lineWidth = lineWidths.contains(width) ? width : 2
         let diameter = CGFloat(defaults.double(forKey: "screenshotBrushWidth"))
-        brushWidth = [9, 15, 21].contains(diameter) ? diameter : 15
+        brushWidth = brushWidths.contains(diameter) ? diameter : 13
+        let mosaicDiameter = CGFloat(defaults.double(forKey: "screenshotMosaicWidth"))
+        mosaicWidth = mosaicWidths.contains(mosaicDiameter) ? mosaicDiameter : 12
         let index = defaults.integer(forKey: "screenshotColorIndex")
         colorIndex = colors.indices.contains(index) ? index : 0
         let solidIndex = defaults.object(forKey: "screenshotSolidColorIndex") as? Int ?? 4
         solidColorIndex = colors.indices.contains(solidIndex) ? solidIndex : 4
         let size = CGFloat(defaults.double(forKey: "screenshotFontSize"))
-        if size.isFinite, size > 0 {
-            fontSize = fontSizes.min(by: { abs($0 - size) < abs($1 - size) }) ?? 24
-        }
+        fontSize = fontSizes.contains(size) ? size : 24
     }
 
     var activeLineWidth: CGFloat {
-        get { tool?.isBrush == true ? brushWidth : lineWidth }
+        get {
+            if tool == .mosaic { return mosaicWidth }
+            return tool?.isBrush == true ? brushWidth : lineWidth
+        }
         set {
-            if tool?.isBrush == true { brushWidth = newValue } else { lineWidth = newValue }
+            if tool == .mosaic {
+                mosaicWidth = newValue
+            } else if tool?.isBrush == true {
+                brushWidth = newValue
+            } else {
+                lineWidth = newValue
+            }
         }
     }
 
@@ -112,8 +127,9 @@ struct ScreenshotToolbar: View {
             .background(.white, in: RoundedRectangle(cornerRadius: 10))
 
             if let tool = state.tool {
-                let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [2, 4, 6]
-                let diameters: [CGFloat] = tool.isBrush ? [8, 10, 12] : [7, 8, 10]
+                let widths = tool == .mosaic ? state.mosaicWidths
+                    : (tool.isBrush ? state.brushWidths : state.lineWidths)
+                let diameters: [CGFloat] = tool.isBrush ? [8, 9, 10.5, 12] : [7, 8, 9, 10]
                 HStack(spacing: 0) {
                     if tool == .text {
                         ForEach(state.fontSizes, id: \.self) { size in
@@ -135,22 +151,25 @@ struct ScreenshotToolbar: View {
                             .accessibilityAddTraits(state.fontSize == size ? .isSelected : [])
                         }
                     } else {
-                        ForEach(widths.indices, id: \.self) { index in
-                            let width = widths[index]
-                            Button {
-                                state.activeLineWidth = width
-                                state.onChange?()
-                            } label: {
-                                Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
-                                    .frame(width: diameters[index], height: diameters[index])
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: Self.optionsHeight)
-                                    .contentShape(Rectangle())
+                        HStack(spacing: 0) {
+                            ForEach(widths.indices, id: \.self) { index in
+                                let width = widths[index]
+                                Button {
+                                    state.activeLineWidth = width
+                                    state.onChange?()
+                                } label: {
+                                    Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
+                                        .frame(width: diameters[index], height: diameters[index])
+                                        .frame(width: 36, height: Self.optionsHeight)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                                .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                                .accessibilityAddTraits(state.activeLineWidth == width ? .isSelected : [])
                             }
-                            .buttonStyle(.plain)
-                            .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
-                            .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
                         }
+                        .frame(maxWidth: tool == .mosaic ? .infinity : nil, alignment: .leading)
                     }
                     if tool != .mosaic {
                         ForEach(state.colors.indices, id: \.self) { index in
@@ -183,6 +202,7 @@ struct ScreenshotToolbar: View {
                         }
                     }
                 }
+                .padding(.horizontal, 12)
                 .frame(width: Self.contentWidth, height: Self.optionsHeight)
                 .background(.white, in: RoundedRectangle(cornerRadius: 10))
             }
