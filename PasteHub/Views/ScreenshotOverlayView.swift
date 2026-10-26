@@ -449,12 +449,13 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private func updateToolbar() {
         guard let selection, dragMode == nil else { toolbar.isHidden = true; return }
         // 预留二级面板高度，底部空间不足时整体放到选区上方或屏幕内。
-        let size = CGSize(width: 387.2, height: editor.tool != nil ? 99.2 : 48)
-        let x = min(max(3.2, selection.maxX - size.width), max(3.2, bounds.width - size.width - 3.2))
+        let size = ScreenshotToolbar.layoutSize(hasOptions: editor.tool != nil)
+        let x = min(max(4, selection.maxX - size.width), max(4, bounds.width - size.width - 4))
         var y = selection.maxY + 8
-        if y + size.height > bounds.height - 3.2 { y = selection.minY - size.height - 8 }
-        y = min(max(3.2, y), max(3.2, bounds.height - size.height - 3.2))
-        toolbar.frame = CGRect(origin: CGPoint(x: x, y: y), size: size)
+        if y + size.height > bounds.height - 4 { y = selection.minY - size.height - 8 }
+        y = min(max(4, y), max(4, bounds.height - size.height - 4))
+        // 与工具栏内部的整数尺寸保持一致，避免整体落在小数坐标上。
+        toolbar.frame = CGRect(origin: CGPoint(x: x.rounded(), y: y.rounded()), size: size)
         toolbar.isHidden = false
         window?.invalidateCursorRects(for: self)
     }

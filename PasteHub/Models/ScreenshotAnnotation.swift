@@ -27,7 +27,7 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
         case .arrow: return "arrow.up.right"
         case .mosaic: return "square.grid.3x3.fill"
         case .solid: return "paintbrush.fill"
-        case .text: return "t"
+        case .text: return "t.square"
         }
     }
 }

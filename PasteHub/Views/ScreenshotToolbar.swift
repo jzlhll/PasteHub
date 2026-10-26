@@ -71,31 +71,47 @@ final class ScreenshotEditorState {
 struct ScreenshotToolbar: View {
     @Bindable var state: ScreenshotEditorState
 
+    private static let buttonWidth: CGFloat = 34
+    private static let rowHeight: CGFloat = 46
+    private static let optionsHeight: CGFloat = 48
+    private static let rowSpacing: CGFloat = 6
+    private static let outerPadding: CGFloat = 4
+    private static let horizontalPadding: CGFloat = 6
+    private static var contentWidth: CGFloat {
+        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 4) + horizontalPadding * 2
+    }
+
+    static func layoutSize(hasOptions: Bool) -> CGSize {
+        CGSize(width: contentWidth + outerPadding * 2,
+               height: rowHeight + outerPadding * 2 + (hasOptions ? rowSpacing + optionsHeight : 0))
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6.4) {
+        VStack(alignment: .leading, spacing: Self.rowSpacing) {
             HStack(spacing: 0) {
                 ForEach(ScreenshotTool.allCases) { tool in
                     icon(tool.symbol, title: tool.title, selected: state.tool == tool,
-                         size: tool == .solid ? 14.4 : 16.8) {
+                         size: toolIconSize(tool)) {
                         state.tool = state.tool == tool ? nil : tool
                         state.onChange?()
                     }
                 }
-                icon("arrow.uturn.backward", title: "撤销（⌘Z）") { state.onUndo?() }
+                icon("arrow.uturn.backward", title: "撤销（⌘Z）", size: 18) { state.onUndo?() }
                     .overlay(alignment: .leading) {
-                        Divider().frame(width: 0.8, height: 17.6).allowsHitTesting(false)
+                        Divider().frame(width: 1, height: 20).allowsHitTesting(false)
                     }
                     .disabled(!state.canUndo)
-                icon("arrow.down.to.line", title: "保存为 PNG") { state.onSave?() }
-                icon("xmark", title: "取消（Esc）", tint: .red) { state.onCancel?() }
+                icon("arrow.down.to.line", title: "保存为 PNG", size: 17) { state.onSave?() }
+                icon("xmark", title: "取消（Esc）", size: 17, tint: .red) { state.onCancel?() }
                 icon("checkmark", title: "复制截图（Enter）", tint: .green) { state.onCopy?() }
             }
-            .frame(width: 380.8, height: 41.6)
-            .background(.white, in: RoundedRectangle(cornerRadius: 9.6))
+            .padding(.horizontal, Self.horizontalPadding)
+            .frame(width: Self.contentWidth, height: Self.rowHeight)
+            .background(.white, in: RoundedRectangle(cornerRadius: 10))
 
             if let tool = state.tool {
                 let widths: [CGFloat] = tool.isBrush ? [9, 15, 21] : [2, 4, 6]
-                let diameters: [CGFloat] = tool.isBrush ? [5.6, 8, 9.6] : [4.8, 6.4, 8]
+                let diameters: [CGFloat] = tool.isBrush ? [8, 10, 12] : [7, 8, 10]
                 HStack(spacing: 0) {
                     if tool == .text {
                         ForEach(state.fontSizes, id: \.self) { size in
@@ -104,10 +120,11 @@ struct ScreenshotToolbar: View {
                                 state.onChange?()
                             } label: {
                                 Text("\(Int(size))")
-                                    .font(.system(size: 12, weight: state.fontSize == size ? .bold : .regular))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .monospacedDigit()
                                     .foregroundStyle(state.fontSize == size ? .blue : .gray)
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 44.8)
+                                    .frame(height: Self.optionsHeight)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -125,7 +142,7 @@ struct ScreenshotToolbar: View {
                                 Circle().fill(state.activeLineWidth == width ? Color.blue : Color.gray)
                                     .frame(width: diameters[index], height: diameters[index])
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 44.8)
+                                    .frame(height: Self.optionsHeight)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -139,24 +156,24 @@ struct ScreenshotToolbar: View {
                                 state.selectedColorIndex = index
                                 state.onChange?()
                             } label: {
-                                RoundedRectangle(cornerRadius: 3.2)
+                                RoundedRectangle(cornerRadius: 4)
                                     .fill(Color(nsColor: state.colors[index]))
-                                    .overlay(RoundedRectangle(cornerRadius: 3.2).stroke(.gray.opacity(0.4), lineWidth: 0.8))
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(.gray.opacity(0.4), lineWidth: 1))
                                     .overlay {
                                         if state.selectedColorIndex == index {
                                             Image(systemName: "checkmark")
-                                                .font(.system(size: 11.2, weight: .bold))
+                                                .font(.system(size: 13, weight: .bold))
                                                 .foregroundStyle(index == 1 || index == 6 ? .black : .white)
                                         }
                                     }
-                                    .frame(width: 20.8, height: 20.8)
+                                    .frame(width: 22, height: 22)
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 44.8)
+                                    .frame(height: Self.optionsHeight)
                                     .contentShape(Rectangle())
                             }
                             .overlay(alignment: .leading) {
                                 if index == state.colors.startIndex {
-                                    Divider().frame(width: 0.8, height: 19.2).allowsHitTesting(false)
+                                    Divider().frame(width: 1, height: 22).allowsHitTesting(false)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -164,30 +181,40 @@ struct ScreenshotToolbar: View {
                         }
                     }
                 }
-                .frame(width: 380.8, height: 44.8)
-                .background(.white, in: RoundedRectangle(cornerRadius: 9.6))
+                .frame(width: Self.contentWidth, height: Self.optionsHeight)
+                .background(.white, in: RoundedRectangle(cornerRadius: 10))
             }
         }
         .foregroundStyle(Color(nsColor: .darkGray))
         .fixedSize()
-        .padding(3.2)
+        .padding(Self.outerPadding)
         .environment(\.colorScheme, .light)
     }
 
-    private func icon(_ symbol: String, title: String, selected: Bool = false, size: CGFloat = 16.8,
+    // 按字形的宽高和实心面积校准视觉大小，保持按钮点击区域一致。
+    private func toolIconSize(_ tool: ScreenshotTool) -> CGFloat {
+        switch tool {
+        case .rectangle: return 17
+        case .ellipse: return 19
+        case .pen: return 20
+        case .line, .arrow: return 20
+        case .text: return 34
+        case .mosaic, .solid: return 16
+        }
+    }
+
+    private func icon(_ symbol: String, title: String, selected: Bool = false, size: CGFloat = 19,
                       tint: Color = Color(nsColor: .darkGray), action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Group {
-                if symbol == "t" { Text("T") }
-                else { Image(systemName: symbol) }
-            }
+            Image(systemName: symbol)
+                // T 只显示系统符号的字母层，次级颜色透明以隐藏外框。
+                .symbolRenderingMode(symbol == "t.square" ? .palette : .monochrome)
                 .font(.system(size: size, weight: .medium))
-                .foregroundStyle(selected ? .blue : tint)
-                .frame(width: 28.8, height: 28.8)
+                .foregroundStyle(selected ? .blue : tint, .clear)
+                .frame(width: 32, height: 32)
                 .background(selected ? Color.blue.opacity(0.12) : .clear,
-                            in: RoundedRectangle(cornerRadius: 6.4))
-                .frame(maxWidth: .infinity)
-                .frame(height: 41.6)
+                            in: RoundedRectangle(cornerRadius: 7))
+                .frame(width: Self.buttonWidth, height: Self.rowHeight)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
