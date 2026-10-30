@@ -265,7 +265,7 @@ final class ScreenshotService {
         let labelHeight = ceil(label.intrinsicContentSize.height)
         let height = labelHeight + 26
         let panel = NSPanel(contentRect: CGRect(x: frame.midX - width / 2,
-                                               y: frame.maxY - frame.height / 4 - height / 2,
+                                               y: frame.maxY - frame.height / 5 - height / 2,
                                                width: width, height: height),
                             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
