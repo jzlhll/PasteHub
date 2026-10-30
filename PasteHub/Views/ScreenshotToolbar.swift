@@ -120,7 +120,7 @@ struct ScreenshotToolbar: View {
                     .disabled(!state.canUndo)
                 icon("arrow.down.to.line", title: "保存为 PNG", size: 17) { state.onSave?() }
                 icon("xmark", title: "取消（Esc）", size: 17, tint: .red) { state.onCancel?() }
-                icon("checkmark", title: "复制截图（Enter）", tint: .green) { state.onCopy?() }
+                icon("checkmark", title: "复制截图（Enter / 双击选区）", tint: .green) { state.onCopy?() }
             }
             .padding(.horizontal, Self.horizontalPadding)
             .frame(width: Self.contentWidth, height: Self.rowHeight)
@@ -129,7 +129,7 @@ struct ScreenshotToolbar: View {
             if let tool = state.tool {
                 let widths = tool == .mosaic ? state.mosaicWidths
                     : (tool.isBrush ? state.brushWidths : state.lineWidths)
-                let diameters: [CGFloat] = tool.isBrush ? [8, 9, 10.5, 12] : [7, 8, 9, 10]
+                let diameters: [CGFloat] = [6, 8, 10, 12]
                 HStack(spacing: 0) {
                     if tool == .text {
                         ForEach(state.fontSizes, id: \.self) { size in

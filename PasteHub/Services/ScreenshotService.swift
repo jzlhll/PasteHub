@@ -257,13 +257,16 @@ final class ScreenshotService {
         toastTask?.cancel()
         toastWindow?.orderOut(nil)
         let label = NSTextField(labelWithString: message)
-        label.font = .systemFont(ofSize: 15, weight: .medium)
+        label.font = .systemFont(ofSize: 18, weight: .medium)
         label.textColor = .white
         label.alignment = .center
         let frame = (screen ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? .zero
         let width = max(260, label.intrinsicContentSize.width + 48)
-        let panel = NSPanel(contentRect: CGRect(x: frame.midX - width / 2, y: frame.minY + 80,
-                                               width: width, height: 48),
+        let labelHeight = ceil(label.intrinsicContentSize.height)
+        let height = labelHeight + 26
+        let panel = NSPanel(contentRect: CGRect(x: frame.midX - width / 2,
+                                               y: frame.maxY - frame.height / 3 - height / 2,
+                                               width: width, height: height),
                             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
         panel.level = .screenSaver
@@ -271,11 +274,11 @@ final class ScreenshotService {
         panel.backgroundColor = .clear
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        let container = NSView(frame: CGRect(x: 0, y: 0, width: width, height: 48))
+        let container = NSView(frame: CGRect(x: 0, y: 0, width: width, height: height))
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.85).cgColor
         container.layer?.cornerRadius = 12
-        label.frame = CGRect(x: 16, y: 14, width: width - 32, height: 22)
+        label.frame = CGRect(x: 16, y: (height - labelHeight) / 2, width: width - 32, height: labelHeight)
         container.addSubview(label)
         panel.contentView = container
         panel.orderFrontRegardless()

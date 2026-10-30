@@ -14,6 +14,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private let bitmap: NSBitmapImageRep
     private var annotations: [ScreenshotAnnotation] = []
     private var undoHistory: [[ScreenshotAnnotation]] = []
+    private var clickAnnotationUndoIndex: Int?
     private var textInputClip: ScreenshotTextClipView?
     private var textInput: NSTextView?
     private var textInputStorage: NSTextStorage?
@@ -45,6 +46,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         toolbar.isHidden = true
         addSubview(toolbar)
         editor.onChange = { [weak self] in
+            self?.clickAnnotationUndoIndex = nil
             self?.updateTextStyle()
             self?.updateToolbar()
             self?.updatePointerCursor()
@@ -129,12 +131,20 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         let point = convert(event.locationInWindow, from: nil)
         // 禁用按钮及工具栏空白处的事件也可能向上传递，不能据此开始框选。
         guard bounds.contains(point), toolbar.isHidden || !toolbar.frame.contains(point) else { return }
+        let previousClickAnnotationUndoIndex = clickAnnotationUndoIndex
+        clickAnnotationUndoIndex = nil
         finishTextEditing()
         pointer = bounded(point)
         dragStart = pointer
         onActivate?()
         window?.makeFirstResponder(self)
-        if event.clickCount == 2, editor.tool == nil, let selection, selection.contains(pointer) {
+        if event.clickCount == 2, let selection, selection.contains(pointer) {
+            // 双击用于完成截图，撤回第一下单击产生的点状标注。
+            if let index = previousClickAnnotationUndoIndex, undoHistory.count == index + 1 {
+                annotations = undoHistory.removeLast()
+                editor.canUndo = !undoHistory.isEmpty
+                needsDisplay = true
+            }
             editor.onCopy?()
             return
         }
@@ -219,6 +229,9 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
             selection = candidate
             onSelect?()
         } else if let pendingAnnotation {
+            if pendingAnnotation.points.allSatisfy({ $0 == dragStart }) {
+                clickAnnotationUndoIndex = undoHistory.count
+            }
             undoHistory.append(annotations)
             annotations.append(pendingAnnotation)
             self.pendingAnnotation = nil
@@ -235,6 +248,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         finishTextEditing(commit: false)
         selection = nil
         undoHistory.removeAll()
+        clickAnnotationUndoIndex = nil
         annotations.removeAll()
         pendingAnnotation = nil
         pendingSelection = nil
@@ -247,6 +261,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
 
     func undoAnnotation() {
         guard dragMode == nil else { return }
+        clickAnnotationUndoIndex = nil
         finishTextEditing()
         guard let previous = undoHistory.popLast() else { return }
         annotations = previous
@@ -303,6 +318,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         let (storage, _, container) = annotation.makeTextLayout()
         textInputStorage = storage
         let input = ScreenshotTextInputView(frame: .zero, textContainer: container)
+        input.onDoubleClick = { [weak self] event in self?.mouseDown(with: event) }
         input.isRichText = false
         input.importsGraphics = false
         input.drawsBackground = false
@@ -593,5 +609,15 @@ private final class ScreenshotTextClipView: NSView {
 // 每次文字编辑使用独立撤销栈，避免撤销命中已经结束的输入框。
 private final class ScreenshotTextInputView: NSTextView {
     private let textUndoManager = UndoManager()
+    var onDoubleClick: ((NSEvent) -> Void)?
     override var undoManager: UndoManager? { textUndoManager }
+
+    override func mouseDown(with event: NSEvent) {
+        // 文字工具的第一下单击会创建空输入框，第二下仍交给画布完成截图。
+        if event.clickCount == 2, string.isEmpty, let onDoubleClick {
+            onDoubleClick(event)
+            return
+        }
+        super.mouseDown(with: event)
+    }
 }
