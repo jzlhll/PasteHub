@@ -1,11 +1,20 @@
 import AppKit
 import ScreenCaptureKit
 import UniformTypeIdentifiers
+import Vision
 
 // 管理截图会话、权限与导出，所有窗口和异步任务随会话结束统一清理。
 @MainActor
 final class ScreenshotService {
     private var captureTask: Task<Void, Never>?
+    private var textRecognitionTask: Task<Void, Never>?
+    private let textRecognitionQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "PasteHub.screenshotTextRecognition"
+        queue.maxConcurrentOperationCount = 1
+        queue.qualityOfService = .userInitiated
+        return queue
+    }()
     private var windows: [ScreenshotWindow] = []
     private var eventMonitor: Any?
     private var screenObserver: NSObjectProtocol?
@@ -103,6 +112,25 @@ final class ScreenshotService {
                 }
             }
             view.editor.onCancel = { [weak self] in self?.cancel() }
+            view.onEdit = { [weak self] in self?.cancelTextRecognition() }
+            view.editor.onRecognizeText = { [weak self, weak view] in
+                guard let view else { return }
+                guard self?.activeView === view else { return }
+                view.beginTextRecognitionSelection()
+            }
+            view.onRecognizeText = { [weak self, weak view] region in
+                guard let view else { return }
+                self?.recognizeText(from: view, in: region)
+            }
+            view.onCopyRecognizedText = { [weak self, weak view] text in
+                guard let self, let view else { return }
+                NSPasteboard.general.clearContents()
+                guard NSPasteboard.general.setString(text, forType: .string) else {
+                    self.showToast("复制失败，请重试", on: view.window?.screen)
+                    return
+                }
+                self.showToast("文字已复制到剪贴板", on: view.window?.screen)
+            }
             view.editor.onCopy = { [weak self, weak view] in
                 guard let view else { return }
                 self?.copyScreenshot(from: view)
@@ -135,6 +163,9 @@ final class ScreenshotService {
                 (window.contentView as? ScreenshotOverlayView)?.handleModifiers(event.modifierFlags)
             }
             return event
+        }
+        if let view = activeView, view.isTextRecognitionActive {
+            return view.handleTextRecognitionKeyEvent(event) ? nil : event
         }
         // 文字输入期间由原生编辑器处理输入法、换行、复制、粘贴与撤销。
         if let view = activeView, view.isEditingText {
@@ -175,6 +206,7 @@ final class ScreenshotService {
     }
 
     func cancel() {
+        cancelTextRecognition()
         captureTask?.cancel()
         captureTask = nil
         savePanel?.cancel(nil)
@@ -191,6 +223,7 @@ final class ScreenshotService {
     }
 
     private func copyScreenshot(from view: ScreenshotOverlayView) {
+        cancelTextRecognition()
         guard let image = view.exportImage(),
               let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
             showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
@@ -212,7 +245,87 @@ final class ScreenshotService {
         showToast("截图已复制到剪贴板", on: screen)
     }
 
+    private func recognizeText(from view: ScreenshotOverlayView, in region: CGRect) {
+        guard view.selection != nil, view.editor.textRecognitionState == .selecting else { return }
+        textRecognitionTask?.cancel()
+        view.editor.textRecognitionState = .recognizing
+        textRecognitionTask = Task { [weak self, weak view] in
+            guard let self, let view else { return }
+            do {
+                try Task.checkCancellation()
+                guard let image = view.exportTextRecognitionImage(in: region) else { throw TextRecognitionError.invalidImage }
+                let queue = self.textRecognitionQueue
+                let text = try await withThrowingTaskGroup(of: String.self) { group in
+                    group.addTask { try await Self.recognizeText(in: image, on: queue) }
+                    group.addTask {
+                        try await Task.sleep(for: .seconds(10))
+                        throw TextRecognitionError.timedOut
+                    }
+                    defer { group.cancelAll() }
+                    return try await group.next() ?? ""
+                }
+                try Task.checkCancellation()
+                guard self.activeView === view, view.editor.textRecognitionState == .recognizing else { return }
+                guard !text.isEmpty else { throw TextRecognitionError.noText }
+                view.showRecognizedText(text)
+                self.textRecognitionTask = nil
+                return
+            } catch {
+                guard !Task.isCancelled, self.activeView === view else { return }
+                if case TextRecognitionError.timedOut = error {
+                    view.editor.textRecognitionState = .timedOut
+                } else {
+                    let message = (error as? TextRecognitionError)?.errorDescription ?? "提取失败，请重试"
+                    view.editor.textRecognitionState = .failed(message)
+                }
+                if !(error is TextRecognitionError) {
+                    NSLog("Screenshot text recognition failed: %@", error.localizedDescription)
+                }
+            }
+            do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            guard !Task.isCancelled else { return }
+            view.resumeTextRecognitionSelection()
+            self.textRecognitionTask = nil
+        }
+    }
+
+    // 复用 BackgroundJob 的取消与等待机制，超时后立即结束等待并丢弃迟到的结果。
+    nonisolated private static func recognizeText(in image: CGImage, on queue: OperationQueue) async throws -> String {
+        let request = VNRecognizeTextRequest()
+        let job = BackgroundJob(cancellableWork: { operation in
+            try autoreleasepool {
+                guard !operation.isCancelled else { throw CancellationError() }
+                request.recognitionLevel = .accurate
+                request.automaticallyDetectsLanguage = true
+                request.usesLanguageCorrection = true
+                let supportedLanguages = try request.supportedRecognitionLanguages()
+                let languages = ["zh-Hans", "zh-Hant", "en-US"].filter { supportedLanguages.contains($0) }
+                if !languages.isEmpty { request.recognitionLanguages = languages }
+                guard !operation.isCancelled else { throw CancellationError() }
+                try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
+                guard !operation.isCancelled else { throw CancellationError() }
+                return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                    .joined(separator: "\n")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        })
+        return try await withTaskCancellationHandler {
+            try await job.value(on: queue)
+        } onCancel: {
+            request.cancel()
+        }
+    }
+
+    private func cancelTextRecognition() {
+        textRecognitionTask?.cancel()
+        textRecognitionTask = nil
+        for window in windows {
+            (window.contentView as? ScreenshotOverlayView)?.resetTextRecognition()
+        }
+    }
+
     private func saveScreenshot(from view: ScreenshotOverlayView) {
+        cancelTextRecognition()
         guard savePanel == nil, let image = view.exportImage(),
               let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { return }
         let panel = NSSavePanel()
@@ -288,6 +401,20 @@ final class ScreenshotService {
             panel.orderOut(nil)
             self?.toastWindow = nil
             self?.toastTask = nil
+        }
+    }
+}
+
+private enum TextRecognitionError: LocalizedError {
+    case invalidImage
+    case noText
+    case timedOut
+
+    nonisolated var errorDescription: String? {
+        switch self {
+        case .invalidImage: return "无法生成截图，请重新选择区域"
+        case .noText: return "未识别到文字，请重试"
+        case .timedOut: return "提取超时，请重试"
         }
     }
 }

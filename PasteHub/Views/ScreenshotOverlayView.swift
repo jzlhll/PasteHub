@@ -8,6 +8,9 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private(set) var selection: CGRect?
     var onActivate: (() -> Void)?
     var onSelect: (() -> Void)?
+    var onEdit: (() -> Void)?
+    var onRecognizeText: ((CGRect) -> Void)?
+    var onCopyRecognizedText: ((String) -> Void)?
 
     private let image: CGImage
     private let mosaic: CGImage
@@ -22,6 +25,8 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private var editingTextIndex: Int?
     private var pendingAnnotation: ScreenshotAnnotation?
     private var pendingSelection: CGRect?
+    private var textRecognitionSelection: CGRect?
+    private var textRecognitionResult: ScreenshotTextRecognitionView?
     private let minimumSelectionPixels: CGFloat = 10
     private var toolbar: NSHostingView<ScreenshotToolbar>!
     private var tracking: NSTrackingArea?
@@ -31,7 +36,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private var dragStart = CGPoint.zero
     private var originalSelection = CGRect.zero
     private var dragMode: DragMode?
-    private enum DragMode: Equatable { case select, draw, move, resize(Int) }
+    private enum DragMode: Equatable { case select, draw, move, resize(Int), recognizeText }
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
@@ -46,6 +51,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         toolbar.isHidden = true
         addSubview(toolbar)
         editor.onChange = { [weak self] in
+            self?.onEdit?()
             self?.clickAnnotationUndoIndex = nil
             self?.updateTextStyle()
             self?.updateToolbar()
@@ -77,7 +83,8 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
 
     override func resetCursorRects() {
         super.resetCursorRects()
-        addCursorRect(bounds, cursor: selection == nil || editor.tool != nil ? .crosshair : .arrow)
+        addCursorRect(bounds, cursor: selection == nil || editor.tool != nil
+                      || editor.textRecognitionState == .selecting ? .crosshair : .arrow)
     }
 
     override func cursorUpdate(with event: NSEvent) { updatePointerCursor() }
@@ -94,7 +101,13 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     }
 
     private func updatePointerCursor() {
-        if !toolbar.isHidden, toolbar.frame.contains(pointer) {
+        if let textRecognitionResult, textRecognitionResult.frame.contains(pointer) {
+            return
+        } else if !toolbar.isHidden, toolbar.frame.contains(pointer) {
+            NSCursor.arrow.set()
+        } else if editor.textRecognitionState == .selecting {
+            NSCursor.crosshair.set()
+        } else if isTextRecognitionActive {
             NSCursor.arrow.set()
         } else if editor.tool == .text, selection?.contains(pointer) == true, handleIndex(at: pointer) == nil {
             NSCursor.iBeam.set()
@@ -131,6 +144,19 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         let point = convert(event.locationInWindow, from: nil)
         // 禁用按钮及工具栏空白处的事件也可能向上传递，不能据此开始框选。
         guard bounds.contains(point), toolbar.isHidden || !toolbar.frame.contains(point) else { return }
+        if let textRecognitionResult, textRecognitionResult.frame.contains(point) { return }
+        if editor.textRecognitionState == .selecting {
+            guard let selection, selection.contains(point) else { return }
+            window?.makeFirstResponder(self)
+            dragStart = point
+            pointer = point
+            textRecognitionSelection = nil
+            dragMode = .recognizeText
+            needsDisplay = true
+            return
+        }
+        if isTextRecognitionActive, textRecognitionResult == nil { return }
+        onEdit?()
         let previousClickAnnotationUndoIndex = clickAnnotationUndoIndex
         clickAnnotationUndoIndex = nil
         finishTextEditing()
@@ -177,6 +203,12 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         pointer = bounded(convert(event.locationInWindow, from: nil))
         guard let dragMode else { return }
         switch dragMode {
+        case .recognizeText:
+            guard let selection else { return }
+            let point = CGPoint(x: min(selection.maxX, max(selection.minX, pointer.x)),
+                                y: min(selection.maxY, max(selection.minY, pointer.y)))
+            let candidate = rect(from: dragStart, to: point)
+            textRecognitionSelection = isValidSelection(candidate) ? candidate : nil
         case .select:
             let candidate = rect(from: dragStart, to: pointer)
             pendingSelection = isValidSelection(candidate) ? candidate : nil
@@ -224,6 +256,13 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     override func mouseUp(with event: NSEvent) {
         guard let dragMode else { return }
         mouseDragged(with: event)
+        if dragMode == .recognizeText {
+            self.dragMode = nil
+            if let textRecognitionSelection { onRecognizeText?(textRecognitionSelection) }
+            updatePointerCursor()
+            needsDisplay = true
+            return
+        }
         if dragMode == .select, let candidate = pendingSelection {
             resetSelection()
             selection = candidate
@@ -245,6 +284,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     }
 
     func resetSelection() {
+        onEdit?()
         finishTextEditing(commit: false)
         selection = nil
         undoHistory.removeAll()
@@ -261,6 +301,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
 
     func undoAnnotation() {
         guard dragMode == nil else { return }
+        onEdit?()
         clickAnnotationUndoIndex = nil
         finishTextEditing()
         guard let previous = undoHistory.popLast() else { return }
@@ -276,10 +317,76 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
                                        selection: selection, annotations: annotations)
     }
 
+    func beginTextRecognitionSelection() {
+        guard selection != nil else { return }
+        onEdit?()
+        finishTextEditing()
+        editor.tool = nil
+        resumeTextRecognitionSelection()
+        updateToolbar()
+        window?.makeFirstResponder(self)
+    }
+
+    func resumeTextRecognitionSelection() {
+        textRecognitionSelection = nil
+        editor.textRecognitionState = .selecting
+        window?.invalidateCursorRects(for: self)
+        updatePointerCursor()
+        needsDisplay = true
+    }
+
+    func exportTextRecognitionImage(in region: CGRect) -> CGImage? {
+        guard let selection, selection.contains(region), isValidSelection(region) else { return nil }
+        return ScreenshotRaster.export(image: image, mosaic: mosaic, canvasSize: bounds.size,
+                                       selection: region, annotations: annotations)
+    }
+
+    func showRecognizedText(_ text: String) {
+        guard let selection else { return }
+        let frame = ScreenshotTextRecognitionView.preferredFrame(around: selection, within: bounds,
+                                                                avoiding: toolbar.frame)
+        let backdrop = ScreenshotRaster.export(image: image, mosaic: mosaic, canvasSize: bounds.size,
+                                              selection: frame, annotations: annotations)
+        let result = ScreenshotTextRecognitionView(frame: frame, text: text, backdrop: backdrop)
+        result.onCopy = { [weak self] text in self?.onCopyRecognizedText?(text) }
+        result.onClose = { [weak self] in self?.onEdit?() }
+        textRecognitionResult?.removeFromSuperview()
+        textRecognitionResult = result
+        editor.textRecognitionState = .result
+        addSubview(result, positioned: .above, relativeTo: toolbar)
+        window?.makeFirstResponder(result.textView)
+        needsDisplay = true
+    }
+
+    func resetTextRecognition() {
+        if let textRecognitionResult, window?.firstResponder === textRecognitionResult.textView {
+            window?.makeFirstResponder(self)
+        }
+        textRecognitionResult?.removeFromSuperview()
+        textRecognitionResult = nil
+        textRecognitionSelection = nil
+        if dragMode == .recognizeText { dragMode = nil }
+        editor.textRecognitionState = .idle
+        window?.invalidateCursorRects(for: self)
+        updatePointerCursor()
+        needsDisplay = true
+    }
+
+    var isTextRecognitionActive: Bool { editor.textRecognitionState != .idle }
+
+    func handleTextRecognitionKeyEvent(_ event: NSEvent) -> Bool {
+        if event.keyCode == 53 {
+            if textRecognitionResult?.textView.hasMarkedText() == true { return false }
+            onEdit?()
+            return true
+        }
+        return handleTextKeyEvent(event)
+    }
+
     var isEditingText: Bool { textInput != nil }
 
     func handleTextKeyEvent(_ event: NSEvent) -> Bool {
-        guard let input = textInput, event.modifierFlags.contains(.command),
+        guard let input = textInput ?? textRecognitionResult?.textView, event.modifierFlags.contains(.command),
               event.modifierFlags.intersection([.control, .option]).isEmpty else { return false }
         switch event.keyCode {
         case 0: input.selectAll(nil)
@@ -499,7 +606,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
             context.setStrokeColor(NSColor.systemBlue.cgColor)
             context.setLineWidth(1)
             context.stroke(selection)
-            if pendingSelection == nil, dragMode == nil || dragMode == .select {
+            if pendingSelection == nil, !isTextRecognitionActive, dragMode == nil || dragMode == .select {
                 for point in handles {
                     let handle = CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)
                     context.setFillColor(NSColor.white.cgColor)
@@ -529,6 +636,55 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         } else if bounds.contains(pointer), window?.frame.contains(NSEvent.mouseLocation) == true {
             drawMagnifier(in: context)
         }
+        if let region = textRecognitionSelection {
+            context.saveGState()
+            context.setFillColor(NSColor.systemBlue.withAlphaComponent(0.08).cgColor)
+            context.fill(region)
+            context.setStrokeColor(NSColor.systemBlue.cgColor)
+            context.setLineWidth(2)
+            context.setLineDash(phase: 0, lengths: [5, 3])
+            context.stroke(region)
+            context.restoreGState()
+        }
+        if editor.textRecognitionState == .selecting, let selection {
+            drawTextRecognitionHint(around: selection)
+        }
+    }
+
+    private func drawTextRecognitionHint(around selection: CGRect) {
+        let text = "框选需要识别的文字 · Esc 返回"
+        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+        let size = CGSize(width: ceil((text as NSString).size(withAttributes: [.font: font]).width) + 8, height: 22)
+        let visible = bounds.insetBy(dx: 8, dy: 8)
+        let gap: CGFloat = 8
+        let width = Int((selection.width * CGFloat(image.width) / bounds.width).rounded())
+        let height = Int((selection.height * CGFloat(image.height) / bounds.height).rounded())
+        let dimensions = "\(width) × \(height)" as NSString
+        let dimensionsFrame = CGRect(x: selection.minX + 1, y: max(5, selection.minY - 26) - 3,
+                                     width: dimensions.size(withAttributes: [.font: font]).width + 8, height: 22)
+        let toolbarFrame = toolbar.isHidden ? CGRect.null : toolbar.frame.insetBy(dx: -gap, dy: -gap)
+        let xs = [selection.midX - size.width / 2, selection.maxX + gap, selection.minX - size.width - gap,
+                  toolbarFrame.minX - size.width - gap, toolbarFrame.maxX + gap, visible.minX, visible.maxX - size.width]
+        let ys = [selection.minY - size.height - gap, selection.maxY + gap,
+                  toolbarFrame.minY - size.height - gap, toolbarFrame.maxY + gap,
+                  dimensionsFrame.minY - size.height - gap, selection.midY - size.height / 2,
+                  visible.minY, visible.maxY - size.height]
+        // 位置只依赖原截图选区和工具栏，二次框选时不跟随鼠标或识别区域移动。
+        for y in ys where y.isFinite {
+            for x in xs where x.isFinite {
+                let frame = CGRect(x: min(max(visible.minX, x), visible.maxX - size.width),
+                                   y: min(max(visible.minY, y), visible.maxY - size.height),
+                                   width: size.width, height: size.height)
+                if visible.contains(frame), !frame.intersects(selection),
+                   !frame.intersects(toolbarFrame), !frame.intersects(dimensionsFrame) {
+                    drawLabel(text, at: CGPoint(x: frame.minX + 4, y: frame.minY + 3))
+                    return
+                }
+            }
+        }
+        let x = min(max(visible.minX, selection.minX + 8), visible.maxX - size.width)
+        let y = min(max(visible.minY, selection.minY + 8), visible.maxY - size.height)
+        drawLabel(text, at: CGPoint(x: x + 4, y: y + 3))
     }
 
     private func drawMagnifier(in context: CGContext) {

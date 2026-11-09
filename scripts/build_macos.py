@@ -110,7 +110,7 @@ def main():
                        "-target", "arm64-apple-macos" + minimum, "-sdk", sdk,
                        "-module-cache-path", str(output.parent / "ModuleCache"),
                        "-O", "-whole-module-optimization", "-module-name", "PasteHub", "-o", str(executable)]
-            for framework in ["AppKit", "SwiftUI", "Carbon", "ScreenCaptureKit", "ServiceManagement"]:
+            for framework in ["AppKit", "SwiftUI", "Carbon", "ScreenCaptureKit", "ServiceManagement", "Vision", "CoreImage"]:
                 command += ["-framework", framework]
             command += [str(path) for path in sorted((root / "PasteHub").rglob("*.swift"))]
             print("Compiling PasteHub...", flush=True)

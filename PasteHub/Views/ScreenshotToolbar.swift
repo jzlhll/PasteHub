@@ -4,7 +4,44 @@ import AppKit
 @MainActor
 @Observable
 final class ScreenshotEditorState {
+    enum TextRecognitionState: Equatable {
+        case idle
+        case selecting
+        case recognizing
+        case result
+        case failed(String)
+        case timedOut
+
+        var symbol: String {
+            switch self {
+            case .idle, .selecting, .recognizing, .result: return "text.viewfinder"
+            case .failed: return "exclamationmark.triangle.fill"
+            case .timedOut: return "clock.badge.exclamationmark"
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .idle, .result: return "框选识别文字"
+            case .selecting: return "在截图内框选需要识别的文字（Esc 返回）"
+            case .recognizing: return "正在提取文字"
+            case .failed(let message): return message
+            case .timedOut: return "提取超时，请重试"
+            }
+        }
+
+        var tint: Color {
+            switch self {
+            case .idle, .recognizing: return Color(nsColor: .darkGray)
+            case .selecting, .result: return .blue
+            case .failed: return .red
+            case .timedOut: return .orange
+            }
+        }
+    }
+
     var tool: ScreenshotTool?
+    var textRecognitionState: TextRecognitionState = .idle
     var lineWidth: CGFloat = 2 {
         didSet { UserDefaults.standard.set(Double(lineWidth), forKey: "screenshotLineWidth") }
     }
@@ -34,6 +71,7 @@ final class ScreenshotEditorState {
     var onSave: (() -> Void)?
     var onCancel: (() -> Void)?
     var onCopy: (() -> Void)?
+    var onRecognizeText: (() -> Void)?
 
     let colors: [NSColor] = [
         NSColor(srgbRed: 1, green: 0.27, blue: 0.27, alpha: 1),
@@ -95,7 +133,7 @@ struct ScreenshotToolbar: View {
     private static let outerPadding: CGFloat = 4
     private static let horizontalPadding: CGFloat = 6
     private static var contentWidth: CGFloat {
-        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 4) + horizontalPadding * 2
+        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 5) + horizontalPadding * 2
     }
 
     static func layoutSize(hasOptions: Bool) -> CGSize {
@@ -118,6 +156,7 @@ struct ScreenshotToolbar: View {
                         Divider().frame(width: 1, height: 20).allowsHitTesting(false)
                     }
                     .disabled(!state.canUndo)
+                textRecognitionButton
                 icon("arrow.down.to.line", title: "保存为 PNG", size: 17) { state.onSave?() }
                 icon("xmark", title: "取消（Esc）", size: 17, tint: .red) { state.onCancel?() }
                 icon("checkmark", title: "复制截图（Enter / 双击选区）", tint: .green) { state.onCopy?() }
@@ -211,6 +250,26 @@ struct ScreenshotToolbar: View {
         .fixedSize()
         .padding(Self.outerPadding)
         .environment(\.colorScheme, .light)
+    }
+
+    private var textRecognitionButton: some View {
+        Button { state.onRecognizeText?() } label: {
+            Group {
+                if state.textRecognitionState == .recognizing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: state.textRecognitionState.symbol)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(state.textRecognitionState.tint)
+                }
+            }
+            .frame(width: Self.buttonWidth, height: Self.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(state.textRecognitionState == .recognizing)
+        .help(state.textRecognitionState.title)
+        .accessibilityLabel(state.textRecognitionState.title)
     }
 
     // 按字形的宽高和实心面积校准视觉大小，保持按钮点击区域一致。
