@@ -1,42 +1,70 @@
 import SwiftUI
 
-// 三级刻度表示质量高低，刻度叠加画笔表示用户自行调整的参数。
+// 图片内部线条的断裂程度表示质量，自定义在中档底图上叠加画笔。
 struct ScreenshotQualityIcon: View {
     let preset: ScreenshotQualityPreset
 
     var body: some View {
-        Group {
-            if preset == .custom {
-                ZStack {
-                    bars
-                    Image(systemName: "pencil")
-                        .font(.system(size: 11, weight: .semibold))
-                        .background {
-                            Capsule()
-                                .fill(.white)
-                                .frame(width: 6, height: 15)
-                                .rotationEffect(.degrees(45))
-                        }
-                        .offset(x: 5, y: 5)
+        ZStack {
+            Path(roundedRect: CGRect(x: 1.5, y: 3, width: 17, height: 14), cornerRadius: 2)
+                .stroke(style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+            if preset == .low {
+                ForEach([30.0, 210.0], id: \.self) { angle in
+                    Path { path in
+                        path.addArc(center: CGPoint(x: 5.6, y: 6.5), radius: 1.15,
+                                    startAngle: .degrees(angle), endAngle: .degrees(angle + 120), clockwise: false)
+                    }
+                    .stroke(style: StrokeStyle(lineWidth: 1, lineCap: .round))
                 }
             } else {
-                bars
+                Path(ellipseIn: CGRect(x: 4.5, y: 5.3, width: 2.3, height: 2.3))
+                    .fill(.foreground)
+            }
+            Path { path in
+                for points in mountainSegments {
+                    path.move(to: points[0])
+                    for point in points.dropFirst() { path.addLine(to: point) }
+                }
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.35, lineCap: .round, lineJoin: .round))
+            if preset == .custom {
+                Image(systemName: "pencil")
+                    .font(.system(size: 11, weight: .semibold))
+                    .background {
+                        Capsule()
+                            .fill(.white)
+                            .frame(width: 6, height: 15)
+                            .rotationEffect(.degrees(45))
+                    }
+                    .offset(x: 5, y: 5)
             }
         }
         .frame(width: 20, height: 20)
+        .scaleEffect(1.1)
         .accessibilityHidden(true)
     }
 
-    private var bars: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(1...3, id: \.self) { level in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(.foreground)
-                    .opacity(preset == .custom || level <= preset.level ? 1 : 0.18)
-                    .frame(width: 4, height: CGFloat(4 + level * 4))
-            }
+    private var mountainSegments: [[CGPoint]] {
+        switch preset {
+        case .high:
+            return [[CGPoint(x: 3, y: 14.5), CGPoint(x: 7, y: 9), CGPoint(x: 10.5, y: 12.8),
+                     CGPoint(x: 13.5, y: 9.5), CGPoint(x: 17, y: 14)]]
+        case .medium, .custom:
+            return [
+                [CGPoint(x: 3, y: 14.5), CGPoint(x: 6, y: 10.4)],
+                [CGPoint(x: 7.5, y: 9.5), CGPoint(x: 10.5, y: 12.8), CGPoint(x: 11.6, y: 11.6)],
+                [CGPoint(x: 13.6, y: 9.7), CGPoint(x: 17, y: 14)]
+            ]
+        case .low:
+            return [
+                [CGPoint(x: 3.2, y: 14.8), CGPoint(x: 4.4, y: 13.1)],
+                [CGPoint(x: 5.8, y: 11.3), CGPoint(x: 6.8, y: 9.8)],
+                [CGPoint(x: 8.5, y: 10.1), CGPoint(x: 9.7, y: 11.5)],
+                [CGPoint(x: 11.3, y: 12.9), CGPoint(x: 12.5, y: 11.4)],
+                [CGPoint(x: 14.3, y: 10.7), CGPoint(x: 15.7, y: 12.4)],
+                [CGPoint(x: 16.5, y: 14.2), CGPoint(x: 17.1, y: 15)]
+            ]
         }
-        .frame(width: 20, height: 20)
     }
 }
 

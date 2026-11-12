@@ -14,15 +14,6 @@ enum ScreenshotQualityPreset: String, CaseIterable, Identifiable {
         case .custom: return "自定义"
         }
     }
-
-    var level: Int {
-        switch self {
-        case .high: return 3
-        case .medium: return 2
-        case .low: return 1
-        case .custom: return 0
-        }
-    }
 }
 
 enum ScreenshotImageFormat: String, CaseIterable, Identifiable {
