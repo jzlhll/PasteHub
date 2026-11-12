@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 图片内部线条的断裂程度表示质量，自定义在中档底图上叠加画笔。
+// 图片内部线条的断裂程度表示质量，自定义在高档底图上叠加画笔。
 struct ScreenshotQualityIcon: View {
     let preset: ScreenshotQualityPreset
 
@@ -80,7 +80,10 @@ struct ScreenshotExportOptionsView: View {
                 rowLabel("预设")
                 HStack(spacing: 4) {
                     ForEach(ScreenshotQualityPreset.allCases) { preset in
-                        Button { state.qualityPreset = preset } label: {
+                        Button {
+                            state.qualityPreset = preset
+                            state.onChange?()
+                        } label: {
                             HStack(spacing: 6) {
                                 ScreenshotQualityIcon(preset: preset)
                                 Text(preset.title).font(.system(size: 12, weight: .medium))
@@ -120,8 +123,8 @@ struct ScreenshotExportOptionsView: View {
             .opacity(isCustom ? 1 : 0.6)
             HStack(spacing: 10) {
                 rowLabel("质量")
-                Slider(value: Binding(get: { Double(min(90, max(50, state.exportOptions.qualityPercent))) },
-                                      set: { state.customJPEGQualityPercent = Int($0.rounded()) }), in: 50...90)
+                Slider(value: Binding(get: { Double(min(85, max(60, state.exportOptions.qualityPercent))) },
+                                      set: { state.customJPEGQualityPercent = Int($0.rounded()) }), in: 60...85)
                     .controlSize(.small)
                     .disabled(!canAdjustQuality)
                     .accessibilityLabel("JPG质量百分比")
@@ -144,7 +147,10 @@ struct ScreenshotExportOptionsView: View {
             .contentShape(Rectangle())
         return Group {
             if isCustom {
-                Button { state.customImageFormat = format } label: { label }
+                Button {
+                    state.customImageFormat = format
+                    state.onChange?()
+                } label: { label }
                     .buttonStyle(.plain)
             } else {
                 label

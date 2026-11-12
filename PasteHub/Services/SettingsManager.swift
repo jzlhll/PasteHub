@@ -125,6 +125,10 @@ final class SettingsManager {
 
     var screenshotHotkeyRegistrationError: String?
 
+    var screenshotMozJPEGEnabled: Bool {
+        didSet { UserDefaults.standard.set(screenshotMozJPEGEnabled, forKey: "screenshotMozJPEGEnabled") }
+    }
+
     var excludedApps: [ExcludedApp] {
         didSet {
             guard let data = try? JSONEncoder().encode(excludedApps) else { return }
@@ -200,6 +204,7 @@ final class SettingsManager {
         }
 
         launchAtLogin = d.bool(forKey: "launchAtLogin")
+        screenshotMozJPEGEnabled = d.object(forKey: "screenshotMozJPEGEnabled") as? Bool ?? true
 
         if let v = d.object(forKey: "hotkeyKeyCode") as? Int {
             hotkeyKeyCode = UInt16(v)

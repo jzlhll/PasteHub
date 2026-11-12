@@ -52,7 +52,7 @@ final class ScreenshotEditorState {
     var customScalePercent = 100 {
         didSet { UserDefaults.standard.set(customScalePercent, forKey: "screenshotCustomScalePercent") }
     }
-    var customJPEGQualityPercent = 80 {
+    var customJPEGQualityPercent = 75 {
         didSet { UserDefaults.standard.set(customJPEGQualityPercent, forKey: "screenshotCustomJPEGQualityPercent") }
     }
     var lineWidth: CGFloat = 2 {
@@ -117,8 +117,8 @@ final class ScreenshotEditorState {
         customImageFormat = ScreenshotImageFormat(rawValue: defaults.string(forKey: "screenshotCustomImageFormat") ?? "") ?? .jpg
         let scale = defaults.object(forKey: "screenshotCustomScalePercent") as? Int ?? 100
         customScalePercent = min(100, max(20, scale))
-        let quality = defaults.object(forKey: "screenshotCustomJPEGQualityPercent") as? Int ?? 80
-        customJPEGQualityPercent = min(90, max(50, quality))
+        let quality = defaults.object(forKey: "screenshotCustomJPEGQualityPercent") as? Int ?? 75
+        customJPEGQualityPercent = min(85, max(60, quality))
     }
 
     var activeLineWidth: CGFloat {
@@ -149,8 +149,8 @@ final class ScreenshotEditorState {
     var exportOptions: ScreenshotExportOptions {
         switch qualityPreset {
         case .high: return ScreenshotExportOptions()
-        case .medium: return ScreenshotExportOptions(format: .jpg, scalePercent: 100, qualityPercent: 82)
-        case .low: return ScreenshotExportOptions(format: .jpg, scalePercent: 75, qualityPercent: 75)
+        case .medium: return ScreenshotExportOptions(format: .jpg, scalePercent: 100, qualityPercent: 75)
+        case .low: return ScreenshotExportOptions(format: .jpg, scalePercent: 70, qualityPercent: 72)
         case .custom:
             return ScreenshotExportOptions(format: customImageFormat, scalePercent: customScalePercent,
                                            qualityPercent: customImageFormat == .png ? 100 : customJPEGQualityPercent)

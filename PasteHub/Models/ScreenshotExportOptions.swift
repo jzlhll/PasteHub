@@ -8,8 +8,8 @@ enum ScreenshotQualityPreset: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .high: return "高"
-        case .medium: return "中"
+        case .high: return "无损"
+        case .medium: return "高"
         case .low: return "低"
         case .custom: return "自定义"
         }
@@ -31,7 +31,7 @@ struct ScreenshotExportOptions {
     var scalePercent: Int = 100
     var qualityPercent: Int = 100
 
-    func encodedData(from image: CGImage) -> Data? {
+    func encodedData(from image: CGImage, useMozJPEG: Bool) -> Data? {
         let output: CGImage
         if scalePercent == 100 {
             output = image
@@ -46,12 +46,15 @@ struct ScreenshotExportOptions {
             guard let scaled = context.makeImage() else { return nil }
             output = scaled
         }
-        let bitmap = NSBitmapImageRep(cgImage: output)
         switch format {
         case .png:
-            return bitmap.representation(using: .png, properties: [:])
+            return NSBitmapImageRep(cgImage: output).representation(using: .png, properties: [:])
         case .jpg:
-            return bitmap.representation(using: .jpeg, properties: [.compressionFactor: Double(qualityPercent) / 100])
+            if useMozJPEG {
+                return MozJPEGEncoder.encodedData(from: output, quality: qualityPercent)
+            }
+            return NSBitmapImageRep(cgImage: output).representation(using: .jpeg,
+                properties: [.compressionFactor: Double(qualityPercent) / 100])
         }
     }
 }

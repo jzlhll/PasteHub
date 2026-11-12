@@ -1,0 +1,6 @@
+/* PasteHub 使用的 64 位 macOS 配置，保持 MozJPEG 4.1.5 的 libjpeg v6b 接口。 */
+#define JPEG_LIB_VERSION 62
+#define LIBJPEG_TURBO_VERSION 4.1.5
+#define LIBJPEG_TURBO_VERSION_NUMBER 4001005
+#define MEM_SRCDST_SUPPORTED 1
+#define BITS_IN_JSAMPLE 8

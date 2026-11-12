@@ -7,7 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var store = ClipboardStore()
     private(set) var settings = SettingsManager()
     private let pasteService = PasteToAppService()
-    private let screenshotService = ScreenshotService()
+    private lazy var screenshotService = ScreenshotService(settings: settings)
     private var monitor: ClipboardMonitor!
     private var panel: FloatingPanel!
     private var statusItem: NSStatusItem!

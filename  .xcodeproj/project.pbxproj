@@ -53,6 +53,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 51A12BD12F4AA20E004A3C57 /* Build configuration list for PBXNativeTarget "PasteHub" */;
 			buildPhases = (
+				61E4AA8B2F53D00200A1B2C3 /* Build MozJPEG */,
 				51A12BC02F4AA20C004A3C57 /* Sources */,
 				51A12BC12F4AA20C004A3C57 /* Frameworks */,
 				51A12BC22F4AA20C004A3C57 /* Resources */,
@@ -114,6 +115,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		61E4AA8B2F53D00200A1B2C3 /* Build MozJPEG */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/scripts/build_mozjpeg.py",
+				"$(SRCROOT)/Vendor/MozJPEG",
+			);
+			name = "Build MozJPEG";
+			outputPaths = (
+				"$(TARGET_TEMP_DIR)/MozJPEG",
+				"$(TARGET_TEMP_DIR)/MozJPEG/libPasteHubMozJPEG.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "python3 \"$SRCROOT/scripts/build_mozjpeg.py\" --output \"$TARGET_TEMP_DIR/MozJPEG/libPasteHubMozJPEG.a\" --architectures $ARCHS --deployment-target \"$MACOSX_DEPLOYMENT_TARGET\" --sdk \"$SDKROOT\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		51A12BC02F4AA20C004A3C57 /* Sources */ = {

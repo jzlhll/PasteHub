@@ -469,6 +469,17 @@ private struct GeneralTab: View {
                 }
             }
 
+            SettingsCard(title: "截图导出") {
+                SettingsRow(
+                    title: "MozJPEG 压缩",
+                    subtitle: "截图导出为 JPG 时启用；关闭后使用系统 JPG 编码器。"
+                ) {
+                    Toggle("MozJPEG 压缩", isOn: $settings.screenshotMozJPEGEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
             SettingsCard(
                 title: "面板",
                 subtitle: ""

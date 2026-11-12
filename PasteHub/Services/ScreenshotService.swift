@@ -6,6 +6,7 @@ import Vision
 // 管理截图会话、权限与导出，所有窗口和异步任务随会话结束统一清理。
 @MainActor
 final class ScreenshotService {
+    private let settings: SettingsManager
     private var captureTask: Task<Void, Never>?
     private var textRecognitionTask: Task<Void, Never>?
     private let textRecognitionQueue: OperationQueue = {
@@ -26,6 +27,10 @@ final class ScreenshotService {
     private var toastTask: Task<Void, Never>?
 
     var isActive: Bool { captureTask != nil || !windows.isEmpty || isShowingPermission }
+
+    init(settings: SettingsManager) {
+        self.settings = settings
+    }
 
     static var hasScreenRecordingPermission: Bool { CGPreflightScreenCaptureAccess() }
 
@@ -228,7 +233,7 @@ final class ScreenshotService {
         cancelTextRecognition()
         let options = view.editor.exportOptions
         guard let image = view.exportImage(),
-              let data = options.encodedData(from: image) else {
+              let data = options.encodedData(from: image, useMozJPEG: settings.screenshotMozJPEGEnabled) else {
             showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
             return
         }
@@ -332,7 +337,8 @@ final class ScreenshotService {
         cancelTextRecognition()
         guard savePanel == nil else { return }
         let options = view.editor.exportOptions
-        guard let image = view.exportImage(), let data = options.encodedData(from: image) else {
+        guard let image = view.exportImage(),
+              let data = options.encodedData(from: image, useMozJPEG: settings.screenshotMozJPEGEnabled) else {
             showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
             return
         }

@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import tempfile
 
+from build_mozjpeg import build as build_mozjpeg
+
 
 def run(*args):
     subprocess.run([str(arg) for arg in args], check=True)
@@ -103,13 +105,16 @@ def main():
         if args.executable:
             shutil.copy2(args.executable, executable)
         else:
+            mozjpeg = build_mozjpeg(output.parent / "MozJPEG" / "libPasteHubMozJPEG.a", ["arm64"], minimum, sdk)
             command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "5",
                        "-default-isolation", "MainActor", "-enable-upcoming-feature",
                        "NonisolatedNonsendingByDefault", "-enable-upcoming-feature",
                        "InferIsolatedConformances", "-enable-upcoming-feature", "MemberImportVisibility",
                        "-target", "arm64-apple-macos" + minimum, "-sdk", sdk,
                        "-module-cache-path", str(output.parent / "ModuleCache"),
-                       "-O", "-whole-module-optimization", "-module-name", "PasteHub", "-o", str(executable)]
+                       "-O", "-whole-module-optimization", "-module-name", "PasteHub", "-o", str(executable),
+                       "-import-objc-header", str(root / "Vendor" / "MozJPEG" / "PasteHubMozJPEG.h"),
+                       str(mozjpeg), "-Xlinker", "-dead_strip"]
             for framework in ["AppKit", "SwiftUI", "Carbon", "ScreenCaptureKit", "ServiceManagement", "Vision", "CoreImage"]:
                 command += ["-framework", framework]
             command += [str(path) for path in sorted((root / "PasteHub").rglob("*.swift"))]
@@ -128,6 +133,7 @@ def main():
             if not (source_resources / "Assets.car").is_file():
                 raise SystemExit("Assets.car is required. Use --resources-from with an existing PasteHub.app.")
             shutil.copytree(source_resources, resources, dirs_exist_ok=True)
+        shutil.copytree(root / "PasteHub" / "Resources", resources, dirs_exist_ok=True)
         info = plistlib.loads((root / "Info.plist").read_bytes())
         info.update({"CFBundleIdentifier": bundle_id, "CFBundleName": "PasteHub",
                      "CFBundleDisplayName": "PasteHub", "CFBundleExecutable": "PasteHub",
