@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 @MainActor
 final class ClipboardMonitor {
@@ -74,15 +75,18 @@ final class ClipboardMonitor {
         }
 
         // 2) 图片
-        if types.contains(.tiff) || types.contains(.png) {
+        let jpegType = NSPasteboard.PasteboardType(UTType.jpeg.identifier)
+        if types.contains(.tiff) || types.contains(.png) || types.contains(jpegType) {
             let png = pasteboard.data(forType: .png)
-            if let data = png ?? pasteboard.data(forType: .tiff) {
-                let isPNG = png != nil
-                let fileURL = store.imagesDirectory.appendingPathComponent(UUID().uuidString + ".png")
+            let jpeg = pasteboard.data(forType: jpegType)
+            if let data = png ?? jpeg ?? pasteboard.data(forType: .tiff) {
+                let hasEncodedImage = png != nil || jpeg != nil
+                let fileExtension = png == nil && jpeg != nil ? "jpg" : "png"
+                let fileURL = store.imagesDirectory.appendingPathComponent(UUID().uuidString + "." + fileExtension)
                 let job = BackgroundJob { () throws -> Bool in
                     try autoreleasepool {
                         let output: Data
-                        if isPNG {
+                        if hasEncodedImage {
                             output = data
                         } else {
                             guard let bitmap = NSBitmapImageRep(data: data),

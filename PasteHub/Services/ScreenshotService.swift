@@ -106,6 +106,7 @@ final class ScreenshotService {
             }
             view.onSelect = { [weak self, weak view] in
                 guard let self, let view else { return }
+                view.editor.restoreExportPreferences()
                 self.activeView = view
                 for window in self.windows {
                     if let other = window.contentView as? ScreenshotOverlayView, other !== view { other.resetSelection() }
@@ -175,6 +176,7 @@ final class ScreenshotService {
         guard let view = activeView else { return event }
         if event.keyCode == 17, view.selection != nil,
            event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
+            view.editor.isShowingExportOptions = false
             view.editor.tool = view.editor.tool == .text ? nil : .text
             view.editor.onChange?()
             return nil
@@ -224,14 +226,16 @@ final class ScreenshotService {
 
     private func copyScreenshot(from view: ScreenshotOverlayView) {
         cancelTextRecognition()
+        let options = view.editor.exportOptions
         guard let image = view.exportImage(),
-              let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+              let data = options.encodedData(from: image) else {
             showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
             return
         }
         let item = NSPasteboardItem()
-        item.setData(data, forType: .png)
-        if let tiff = NSBitmapImageRep(cgImage: image).tiffRepresentation {
+        item.setData(data, forType: options.format.pasteboardType)
+        // 兼容数据也从最终编码结果生成，避免粘贴时绕过缩放和 JPG 质量设置。
+        if let tiff = NSBitmapImageRep(data: data)?.tiffRepresentation {
             item.setData(tiff, forType: .tiff)
         }
         let pasteboard = NSPasteboard.general
@@ -326,12 +330,16 @@ final class ScreenshotService {
 
     private func saveScreenshot(from view: ScreenshotOverlayView) {
         cancelTextRecognition()
-        guard savePanel == nil, let image = view.exportImage(),
-              let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { return }
+        guard savePanel == nil else { return }
+        let options = view.editor.exportOptions
+        guard let image = view.exportImage(), let data = options.encodedData(from: image) else {
+            showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
+            return
+        }
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
+        panel.allowedContentTypes = [options.format.contentType]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "截图-\(Date().formatted(.dateTime.year().month().day().hour().minute().second()).replacingOccurrences(of: ":", with: "-" )).png"
+        panel.nameFieldStringValue = "截图-\(Date().formatted(.dateTime.year().month().day().hour().minute().second()).replacingOccurrences(of: ":", with: "-" )).\(options.format.rawValue)"
         panel.title = "保存截图"
         savePanel = panel
         // 原生保存面板需要位于截图蒙层上方，取消保存后恢复编辑。

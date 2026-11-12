@@ -166,7 +166,7 @@ enum ScreenshotRaster {
         guard let context = CGContext(data: nil, width: Int(pixels.width), height: Int(pixels.height),
                                       bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
         context.translateBy(x: -pixels.minX, y: pixels.height + pixels.minY)
         context.scaleBy(x: scaleX, y: -scaleY)
         draw(image, in: CGRect(origin: .zero, size: canvasSize), context: context)

@@ -42,6 +42,19 @@ final class ScreenshotEditorState {
 
     var tool: ScreenshotTool?
     var textRecognitionState: TextRecognitionState = .idle
+    var isShowingExportOptions = false
+    var qualityPreset: ScreenshotQualityPreset = .medium {
+        didSet { UserDefaults.standard.set(qualityPreset.rawValue, forKey: "screenshotQualityPreset") }
+    }
+    var customImageFormat: ScreenshotImageFormat = .jpg {
+        didSet { UserDefaults.standard.set(customImageFormat.rawValue, forKey: "screenshotCustomImageFormat") }
+    }
+    var customScalePercent = 100 {
+        didSet { UserDefaults.standard.set(customScalePercent, forKey: "screenshotCustomScalePercent") }
+    }
+    var customJPEGQualityPercent = 80 {
+        didSet { UserDefaults.standard.set(customJPEGQualityPercent, forKey: "screenshotCustomJPEGQualityPercent") }
+    }
     var lineWidth: CGFloat = 2 {
         didSet { UserDefaults.standard.set(Double(lineWidth), forKey: "screenshotLineWidth") }
     }
@@ -95,6 +108,17 @@ final class ScreenshotEditorState {
         solidColorIndex = colors.indices.contains(solidIndex) ? solidIndex : 4
         let size = CGFloat(defaults.double(forKey: "screenshotFontSize"))
         fontSize = fontSizes.contains(size) ? size : 24
+        restoreExportPreferences()
+    }
+
+    func restoreExportPreferences() {
+        let defaults = UserDefaults.standard
+        qualityPreset = ScreenshotQualityPreset(rawValue: defaults.string(forKey: "screenshotQualityPreset") ?? "") ?? .medium
+        customImageFormat = ScreenshotImageFormat(rawValue: defaults.string(forKey: "screenshotCustomImageFormat") ?? "") ?? .jpg
+        let scale = defaults.object(forKey: "screenshotCustomScalePercent") as? Int ?? 100
+        customScalePercent = min(100, max(20, scale))
+        let quality = defaults.object(forKey: "screenshotCustomJPEGQualityPercent") as? Int ?? 80
+        customJPEGQualityPercent = min(90, max(50, quality))
     }
 
     var activeLineWidth: CGFloat {
@@ -121,6 +145,17 @@ final class ScreenshotEditorState {
     }
 
     var color: NSColor { colors[selectedColorIndex] }
+
+    var exportOptions: ScreenshotExportOptions {
+        switch qualityPreset {
+        case .high: return ScreenshotExportOptions()
+        case .medium: return ScreenshotExportOptions(format: .jpg, scalePercent: 100, qualityPercent: 82)
+        case .low: return ScreenshotExportOptions(format: .jpg, scalePercent: 75, qualityPercent: 75)
+        case .custom:
+            return ScreenshotExportOptions(format: customImageFormat, scalePercent: customScalePercent,
+                                           qualityPercent: customImageFormat == .png ? 100 : customJPEGQualityPercent)
+        }
+    }
 }
 
 struct ScreenshotToolbar: View {
@@ -129,16 +164,18 @@ struct ScreenshotToolbar: View {
     private static let buttonWidth: CGFloat = 34
     private static let rowHeight: CGFloat = 46
     private static let optionsHeight: CGFloat = 48
+    private static let exportOptionsHeight: CGFloat = 180
     private static let rowSpacing: CGFloat = 6
     private static let outerPadding: CGFloat = 4
     private static let horizontalPadding: CGFloat = 6
     private static var contentWidth: CGFloat {
-        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 5) + horizontalPadding * 2
+        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 6) + horizontalPadding * 2
     }
 
-    static func layoutSize(hasOptions: Bool) -> CGSize {
-        CGSize(width: contentWidth + outerPadding * 2,
-               height: rowHeight + outerPadding * 2 + (hasOptions ? rowSpacing + optionsHeight : 0))
+    static func layoutSize(hasOptions: Bool, showingExportOptions: Bool) -> CGSize {
+        let height = showingExportOptions ? exportOptionsHeight : (hasOptions ? optionsHeight : 0)
+        return CGSize(width: contentWidth + outerPadding * 2,
+                      height: rowHeight + outerPadding * 2 + (height > 0 ? rowSpacing + height : 0))
     }
 
     var body: some View {
@@ -147,6 +184,7 @@ struct ScreenshotToolbar: View {
                 ForEach(ScreenshotTool.allCases) { tool in
                     icon(tool.symbol, title: tool.title, selected: state.tool == tool,
                          size: toolIconSize(tool)) {
+                        state.isShowingExportOptions = false
                         state.tool = state.tool == tool ? nil : tool
                         state.onChange?()
                     }
@@ -157,7 +195,23 @@ struct ScreenshotToolbar: View {
                     }
                     .disabled(!state.canUndo)
                 textRecognitionButton
-                icon("arrow.down.to.line", title: "保存为 PNG", size: 17) { state.onSave?() }
+                Button {
+                    state.isShowingExportOptions.toggle()
+                    if state.isShowingExportOptions { state.tool = nil }
+                    state.onChange?()
+                } label: {
+                    ScreenshotQualityIcon(preset: state.qualityPreset)
+                        .foregroundStyle(state.isShowingExportOptions ? Color.blue : Color(nsColor: .darkGray))
+                        .frame(width: 32, height: 32)
+                        .background(state.isShowingExportOptions ? Color.blue.opacity(0.12) : .clear,
+                                    in: RoundedRectangle(cornerRadius: 7))
+                        .frame(width: Self.buttonWidth, height: Self.rowHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("导出质量：\(state.qualityPreset.title)")
+                .accessibilityLabel("导出质量：\(state.qualityPreset.title)")
+                icon("arrow.down.to.line", title: "保存为 \(state.exportOptions.format.title)", size: 17) { state.onSave?() }
                 icon("xmark", title: "取消（Esc）", size: 17, tint: .red) { state.onCancel?() }
                 icon("checkmark", title: "复制截图（Enter / 双击选区）", tint: .green) { state.onCopy?() }
             }
@@ -165,7 +219,11 @@ struct ScreenshotToolbar: View {
             .frame(width: Self.contentWidth, height: Self.rowHeight)
             .background(.white, in: RoundedRectangle(cornerRadius: 10))
 
-            if let tool = state.tool {
+            if state.isShowingExportOptions {
+                ScreenshotExportOptionsView(state: state)
+                    .frame(width: Self.contentWidth, height: Self.exportOptionsHeight)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 10))
+            } else if let tool = state.tool {
                 let widths = tool == .mosaic ? state.mosaicWidths
                     : (tool.isBrush ? state.brushWidths : state.lineWidths)
                 let diameters: [CGFloat] = [6, 8, 10, 12]

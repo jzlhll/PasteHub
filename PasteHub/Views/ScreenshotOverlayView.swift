@@ -294,6 +294,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         pendingSelection = nil
         dragMode = nil
         editor.tool = nil
+        editor.isShowingExportOptions = false
         editor.canUndo = false
         toolbar.isHidden = true
         needsDisplay = true
@@ -322,6 +323,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         onEdit?()
         finishTextEditing()
         editor.tool = nil
+        editor.isShowingExportOptions = false
         resumeTextRecognitionSelection()
         updateToolbar()
         window?.makeFirstResponder(self)
@@ -572,7 +574,8 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private func updateToolbar() {
         guard let selection, dragMode == nil else { toolbar.isHidden = true; return }
         // 预留二级面板高度，底部空间不足时整体放到选区上方或屏幕内。
-        let size = ScreenshotToolbar.layoutSize(hasOptions: editor.tool != nil)
+        let size = ScreenshotToolbar.layoutSize(hasOptions: editor.tool != nil,
+                                                showingExportOptions: editor.isShowingExportOptions)
         let x = min(max(4, selection.maxX - size.width), max(4, bounds.width - size.width - 4))
         var y = selection.maxY + 8
         if y + size.height > bounds.height - 4 { y = selection.minY - size.height - 8 }

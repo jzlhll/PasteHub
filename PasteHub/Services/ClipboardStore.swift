@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import Observation
+import UniformTypeIdentifiers
 
 @MainActor
 @Observable
@@ -116,7 +117,15 @@ final class ClipboardStore {
         case .image:
             if let url = item.contentURL,
                let image = NSImage(contentsOf: url) {
-                pasteboard.writeObjects([image])
+                let type = UTType(filenameExtension: url.pathExtension)
+                if let type, (type == .png || type == .jpeg), let data = try? Data(contentsOf: url) {
+                    let representation = NSPasteboardItem()
+                    representation.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+                    if let tiff = image.tiffRepresentation { representation.setData(tiff, forType: .tiff) }
+                    pasteboard.writeObjects([representation])
+                } else {
+                    pasteboard.writeObjects([image])
+                }
             }
         case .file:
             if let url = item.contentURL {
