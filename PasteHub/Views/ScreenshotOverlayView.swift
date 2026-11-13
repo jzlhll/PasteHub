@@ -656,7 +656,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
 
     private func drawTextRecognitionHint(around selection: CGRect) {
         let text = "框选需要识别的文字 · Esc 返回"
-        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+        let font = Self.overlayFont(ofSize: 12)
         let size = CGSize(width: ceil((text as NSString).size(withAttributes: [.font: font]).width) + 8, height: 22)
         let visible = bounds.insetBy(dx: 8, dy: 8)
         let gap: CGFloat = 8
@@ -741,17 +741,22 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     }
 
     private func drawLabel(_ text: String, at point: CGPoint) {
-        let size = (text as NSString).size(withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)])
+        let font = Self.overlayFont(ofSize: 12)
+        let size = (text as NSString).size(withAttributes: [.font: font])
         NSColor.black.withAlphaComponent(0.8).setFill()
         NSBezierPath(roundedRect: CGRect(x: point.x - 4, y: point.y - 3, width: size.width + 8, height: 22),
                      xRadius: 4, yRadius: 4).fill()
-        drawText(text, at: point, size: 12)
+        (text as NSString).draw(at: point, withAttributes: [.font: font, .foregroundColor: NSColor.white])
     }
 
     private func drawText(_ text: String, at point: CGPoint, size: CGFloat) {
         (text as NSString).draw(at: point, withAttributes: [
-            .font: NSFont.monospacedSystemFont(ofSize: size, weight: .medium), .foregroundColor: NSColor.white
+            .font: Self.overlayFont(ofSize: size), .foregroundColor: NSColor.white
         ])
+    }
+
+    private static func overlayFont(ofSize size: CGFloat) -> NSFont {
+        NSFont(name: "Menlo-Regular", size: size) ?? NSFont.systemFont(ofSize: size)
     }
 }
 
