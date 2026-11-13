@@ -149,8 +149,8 @@ final class ScreenshotEditorState {
     var exportOptions: ScreenshotExportOptions {
         switch qualityPreset {
         case .high: return ScreenshotExportOptions()
-        case .medium: return ScreenshotExportOptions(format: .jpg, scalePercent: 100, qualityPercent: 75)
-        case .low: return ScreenshotExportOptions(format: .jpg, scalePercent: 70, qualityPercent: 72)
+        case .medium: return ScreenshotExportOptions(format: .jpg, scalePercent: 100, qualityPercent: 84)
+        case .low: return ScreenshotExportOptions(format: .jpg, scalePercent: 75, qualityPercent: 78)
         case .custom:
             return ScreenshotExportOptions(format: customImageFormat, scalePercent: customScalePercent,
                                            qualityPercent: customImageFormat == .png ? 100 : customJPEGQualityPercent)
