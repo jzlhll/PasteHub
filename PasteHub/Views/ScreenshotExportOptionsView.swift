@@ -123,8 +123,8 @@ struct ScreenshotExportOptionsView: View {
             .opacity(isCustom ? 1 : 0.6)
             HStack(spacing: 10) {
                 rowLabel("质量")
-                Slider(value: Binding(get: { Double(min(85, max(60, state.exportOptions.qualityPercent))) },
-                                      set: { state.customJPEGQualityPercent = Int($0.rounded()) }), in: 60...85)
+                Slider(value: Binding(get: { Double(min(95, max(65, state.exportOptions.qualityPercent))) },
+                                      set: { state.customJPEGQualityPercent = Int($0.rounded()) }), in: 65...95)
                     .controlSize(.small)
                     .disabled(!canAdjustQuality)
                     .accessibilityLabel("JPG质量百分比")

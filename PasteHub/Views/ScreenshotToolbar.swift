@@ -118,7 +118,7 @@ final class ScreenshotEditorState {
         let scale = defaults.object(forKey: "screenshotCustomScalePercent") as? Int ?? 100
         customScalePercent = min(100, max(20, scale))
         let quality = defaults.object(forKey: "screenshotCustomJPEGQualityPercent") as? Int ?? 75
-        customJPEGQualityPercent = min(85, max(60, quality))
+        customJPEGQualityPercent = min(95, max(65, quality))
     }
 
     var activeLineWidth: CGFloat {
