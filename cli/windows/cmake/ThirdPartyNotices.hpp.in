@@ -1,0 +1,7 @@
+#pragma once
+
+inline constexpr char kThirdPartyNotices[] = R"PH_LICENSE(libwebp
+https://chromium.googlesource.com/webm/libwebp/
+
+@PASTEHUB_WEBP_NOTICES@
+)PH_LICENSE";

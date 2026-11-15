@@ -1,0 +1,2 @@
+-keep class top.yayalu.imagecodec.ImageCodec { *; }
+-keep class top.yayalu.imagecodec.ImageCodec$* { *; }

@@ -1,0 +1,69 @@
+apply plugin: 'com.android.library'
+
+// 通过 Variant API 声明生成资源，授权文件作为 AAR 资源随库交付。
+abstract class PrepareImageNotices extends DefaultTask {
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getNoticeFiles()
+
+    @OutputDirectory
+    abstract DirectoryProperty getOutputDirectory()
+
+    @TaskAction
+    void generate() {
+        def folder = new File(outputDirectory.get().asFile, 'pastehub-image')
+        folder.mkdirs()
+        noticeFiles.files.each { source -> new File(folder, source.name).bytes = source.bytes }
+    }
+}
+
+def noticesTask = tasks.register('prepareNotices', PrepareImageNotices) {
+    noticeFiles.from('../../vendor/libwebp/COPYING', '../../vendor/libwebp/PATENTS', '../../vendor/libwebp/AUTHORS')
+    outputDirectory.set(layout.buildDirectory.dir('generated/notices'))
+}
+
+android {
+    namespace = 'top.yayalu.imagecodec'
+    compileSdk = 35
+    ndkVersion = '27.1.12297006'
+    defaultConfig {
+        minSdk = 21
+        consumerProguardFiles 'consumer-rules.pro'
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=c++_static', '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+                targets 'PasteHubImage'
+            }
+        }
+    }
+    buildTypes {
+        release { minifyEnabled = false }
+    }
+    buildFeatures {
+        buildConfig = false
+        prefabPublishing = true
+    }
+    prefab {
+        create('PasteHubImage') {
+            headers = file('../../include').path
+            libraryName = 'pastehub_image'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path = file('../../CMakeLists.txt')
+            version = '3.30.5'
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.assets.addGeneratedSourceDirectory(noticesTask) { task -> task.outputDirectory }
+    }
+}

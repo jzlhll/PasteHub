@@ -1,0 +1,23 @@
+pluginManagement {
+    repositories {
+        def mirror = providers.gradleProperty('pastehubMavenMirror').orNull
+        if (mirror) {
+            maven { url = "${mirror}/google" }
+            maven { url = "${mirror}/public" }
+        }
+        google(); mavenCentral(); gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        def mirror = providers.gradleProperty('pastehubMavenMirror').orNull
+        if (mirror) {
+            maven { url = "${mirror}/google" }
+            maven { url = "${mirror}/public" }
+        }
+        google(); mavenCentral()
+    }
+}
+rootProject.name = 'pastehub-image'
+include ':imagecodec'

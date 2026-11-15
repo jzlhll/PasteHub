@@ -1,0 +1,10 @@
+{
+  "name": "pastehub-image-windows",
+  "version-string": "0.1.0",
+  "dependencies": [
+    {
+      "name": "libwebp",
+      "default-features": false
+    }
+  ]
+}

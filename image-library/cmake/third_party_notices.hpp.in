@@ -1,0 +1,6 @@
+#pragma once
+inline constexpr char kThirdPartyNotices[] = R"PH_NOTICE(libwebp 1.6.0
+https://chromium.googlesource.com/webm/libwebp/+/refs/tags/v1.6.0
+
+@PH_IMAGE_NOTICES@
+)PH_NOTICE";

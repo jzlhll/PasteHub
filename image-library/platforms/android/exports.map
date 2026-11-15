@@ -1,0 +1,8 @@
+{
+    global:
+        ph_image_*;
+        JNI_OnLoad;
+        JNI_OnUnload;
+    local:
+        *;
+};

@@ -1,0 +1,17 @@
+buildscript {
+    repositories {
+        def mirror = project.findProperty('pastehubMavenMirror')
+        if (mirror) {
+            maven { url = "${mirror}/google" }
+            maven { url = "${mirror}/public" }
+        }
+        google()
+        mavenCentral()
+    }
+    dependencies { classpath 'com.android.tools.build:gradle:9.4.0' }
+}
+
+allprojects {
+    group = 'top.yayalu'
+    version = '1.0.0'
+}

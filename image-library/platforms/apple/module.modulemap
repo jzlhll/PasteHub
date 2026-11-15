@@ -1,0 +1,9 @@
+module PasteHubImage {
+    header "pastehub_image.h"
+    export *
+    link "PasteHubImage"
+    link "c++"
+    link framework "CoreFoundation"
+    link framework "CoreGraphics"
+    link framework "ImageIO"
+}
