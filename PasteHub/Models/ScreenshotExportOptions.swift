@@ -10,7 +10,7 @@ enum ScreenshotQualityPreset: String, CaseIterable, Identifiable {
         switch self {
         case .high: return "无损"
         case .medium: return "高"
-        case .low: return "低"
+        case .low: return "普通"
         case .custom: return "自定义"
         }
     }
