@@ -1,0 +1,5 @@
+// Public defaults for open-source builds.
+DEVELOPMENT_TEAM =
+PRODUCT_BUNDLE_IDENTIFIER = com.example.PasteHub
+
+#include? "Config/Secrets.xcconfig"

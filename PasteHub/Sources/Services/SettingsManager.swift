@@ -115,20 +115,6 @@ final class SettingsManager {
         didSet { UserDefaults.standard.set(Int(hotkeyModifiers), forKey: "hotkeyModifiers") }
     }
 
-    private(set) var screenshotHotkeyKeyCode: UInt16 {
-        didSet { UserDefaults.standard.set(Int(screenshotHotkeyKeyCode), forKey: "screenshotHotkeyKeyCode") }
-    }
-
-    private(set) var screenshotHotkeyModifiers: UInt {
-        didSet { UserDefaults.standard.set(Int(screenshotHotkeyModifiers), forKey: "screenshotHotkeyModifiers") }
-    }
-
-    var screenshotHotkeyRegistrationError: String?
-
-    var screenshotMozJPEGEnabled: Bool {
-        didSet { UserDefaults.standard.set(screenshotMozJPEGEnabled, forKey: "screenshotMozJPEGEnabled") }
-    }
-
     var excludedApps: [ExcludedApp] {
         didSet {
             guard let data = try? JSONEncoder().encode(excludedApps) else { return }
@@ -204,7 +190,6 @@ final class SettingsManager {
         }
 
         launchAtLogin = d.bool(forKey: "launchAtLogin")
-        screenshotMozJPEGEnabled = d.object(forKey: "screenshotMozJPEGEnabled") as? Bool ?? true
 
         if let v = d.object(forKey: "hotkeyKeyCode") as? Int {
             hotkeyKeyCode = UInt16(v)
@@ -216,18 +201,6 @@ final class SettingsManager {
             hotkeyModifiers = UInt(v)
         } else {
             hotkeyModifiers = NSEvent.ModifierFlags([.command, .shift]).rawValue
-        }
-
-        if let code = d.object(forKey: "screenshotHotkeyKeyCode") as? Int,
-           code >= 0, code <= Int(UInt16.max) {
-            screenshotHotkeyKeyCode = UInt16(code)
-        } else {
-            screenshotHotkeyKeyCode = 0
-        }
-        if let modifiers = d.object(forKey: "screenshotHotkeyModifiers") as? Int, modifiers > 0 {
-            screenshotHotkeyModifiers = UInt(modifiers)
-        } else {
-            screenshotHotkeyModifiers = NSEvent.ModifierFlags([.option, .shift]).rawValue
         }
 
         if let data = d.data(forKey: "excludedApps"),
@@ -279,16 +252,6 @@ final class SettingsManager {
         hotkeyKeyCode = keyCode
         hotkeyModifiers = modifiers
         onHotkeyChanged?()
-    }
-
-    func setScreenshotHotkey(keyCode: UInt16, modifiers: UInt) {
-        screenshotHotkeyKeyCode = keyCode
-        screenshotHotkeyModifiers = modifiers
-        onHotkeyChanged?()
-    }
-
-    var screenshotHotkeyDisplayString: String {
-        Self.displayString(for: screenshotHotkeyKeyCode, modifiers: screenshotHotkeyModifiers)
     }
 
     func isAppExcluded(bundleIdentifier: String?) -> Bool {

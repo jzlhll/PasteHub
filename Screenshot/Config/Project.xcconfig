@@ -1,6 +1,6 @@
 // Public defaults for open-source builds.
 DEVELOPMENT_TEAM =
-PRODUCT_BUNDLE_IDENTIFIER = com.example.PasteHub
+PRODUCT_BUNDLE_IDENTIFIER = top.yayalu.Screenshot
 SWIFT_OBJC_BRIDGING_HEADER = $(SRCROOT)/Vendor/MozJPEG/PasteHubMozJPEG.h
 OTHER_LDFLAGS = $(inherited) "$(TARGET_TEMP_DIR)/MozJPEG/libPasteHubMozJPEG.a"
 

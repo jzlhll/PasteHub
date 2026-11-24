@@ -7,14 +7,14 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		51A12BC42F4AA20C004A3C57 /* PasteHub.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PasteHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		51A12BC42F4AA20C004A3C57 /* ASimpleShot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ASimpleShot.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		61E4AA8B2F53D00100A1B2C3 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Project.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		51A12BC62F4AA20C004A3C57 /* PasteHub */ = {
+		51A12BC62F4AA20C004A3C57 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PasteHub;
+			path = Sources;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,7 +33,7 @@
 		51A12BBB2F4AA20C004A3C57 = {
 			isa = PBXGroup;
 			children = (
-				51A12BC62F4AA20C004A3C57 /* PasteHub */,
+				51A12BC62F4AA20C004A3C57 /* Sources */,
 				51A12BC52F4AA20C004A3C57 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,7 +41,7 @@
 		51A12BC52F4AA20C004A3C57 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				51A12BC42F4AA20C004A3C57 /* PasteHub.app */,
+				51A12BC42F4AA20C004A3C57 /* ASimpleShot.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -49,9 +49,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		51A12BC32F4AA20C004A3C57 /* PasteHub */ = {
+		51A12BC32F4AA20C004A3C57 /* Screenshot */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 51A12BD12F4AA20E004A3C57 /* Build configuration list for PBXNativeTarget "PasteHub" */;
+			buildConfigurationList = 51A12BD12F4AA20E004A3C57 /* Build configuration list for PBXNativeTarget "Screenshot" */;
 			buildPhases = (
 				61E4AA8B2F53D00200A1B2C3 /* Build MozJPEG */,
 				51A12BC02F4AA20C004A3C57 /* Sources */,
@@ -63,13 +63,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				51A12BC62F4AA20C004A3C57 /* PasteHub */,
+				51A12BC62F4AA20C004A3C57 /* Sources */,
 			);
-			name = PasteHub;
+			name = Screenshot;
 			packageProductDependencies = (
 			);
-			productName = PasteHub;
-			productReference = 51A12BC42F4AA20C004A3C57 /* PasteHub.app */;
+			productName = ASimpleShot;
+			productReference = 51A12BC42F4AA20C004A3C57 /* ASimpleShot.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -101,7 +101,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				51A12BC32F4AA20C004A3C57 /* PasteHub */,
+				51A12BC32F4AA20C004A3C57 /* Screenshot */,
 			);
 		};
 /* End PBXProject section */
@@ -153,7 +153,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -218,7 +217,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -275,9 +273,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 61E4AA8B2F53D00100A1B2C3 /* Project.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -295,7 +290,6 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = PasteHub;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -303,7 +297,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.3.1;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = ASimpleShot;
+				EXECUTABLE_NAME = Screenshot;
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
 				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
@@ -321,9 +316,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 61E4AA8B2F53D00100A1B2C3 /* Project.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -341,7 +333,6 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = PasteHub;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -349,7 +340,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.3.1;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = ASimpleShot;
+				EXECUTABLE_NAME = Screenshot;
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
 				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
@@ -375,7 +367,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		51A12BD12F4AA20E004A3C57 /* Build configuration list for PBXNativeTarget "PasteHub" */ = {
+		51A12BD12F4AA20E004A3C57 /* Build configuration list for PBXNativeTarget "Screenshot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				51A12BD22F4AA20E004A3C57 /* Debug */,

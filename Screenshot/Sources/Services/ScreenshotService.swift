@@ -11,7 +11,7 @@ final class ScreenshotService {
     private var textRecognitionTask: Task<Void, Never>?
     private let textRecognitionQueue: OperationQueue = {
         let queue = OperationQueue()
-        queue.name = "PasteHub.screenshotTextRecognition"
+        queue.name = "Screenshot.textRecognition"
         queue.maxConcurrentOperationCount = 1
         queue.qualityOfService = .userInitiated
         return queue
@@ -45,8 +45,8 @@ final class ScreenshotService {
         defer { isShowingPermission = false }
         guard Self.hasScreenRecordingPermission || CGRequestScreenCaptureAccess() else {
             let alert = NSAlert()
-            alert.messageText = "需要屏幕录制权限"
-            alert.informativeText = "PasteHub 需要读取屏幕来截图和取色。请在系统设置的“隐私与安全性 → 屏幕与系统音频录制”中允许 PasteHub。授权后再次按截图快捷键；若仍未生效，请退出并重新打开应用。截图不会录制音频。"
+            alert.messageText = "需要截图权限"
+            alert.informativeText = "截图和取色需要读取屏幕内容。请在系统设置的「隐私与安全 → 录屏与系统录音」中允许 ASimpleShot 访问屏幕。授权后若仍无法截图，请重新打开 ASimpleShot。"
             alert.addButton(withTitle: "打开系统设置")
             alert.addButton(withTitle: "取消")
             NSApp.activate(ignoringOtherApps: true)
@@ -435,7 +435,7 @@ private enum TextRecognitionError: LocalizedError {
 
 private enum ScreenshotError: LocalizedError {
     case noDisplay
-    nonisolated var errorDescription: String? { "没有可用的显示器，请检查显示器连接与屏幕录制权限。" }
+    nonisolated var errorDescription: String? { "没有可用的显示器，请检查显示器连接与截图权限。" }
 }
 
 private final class ScreenshotWindow: NSWindow {

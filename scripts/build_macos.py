@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""使用 Command Line Tools 编译、打包并签名 PasteHub。"""
+"""使用 Command Line Tools 编译、打包并签名一个 macOS 应用。"""
 
 import argparse
 import json
@@ -8,9 +8,8 @@ import plistlib
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
-
-from build_mozjpeg import build as build_mozjpeg
 
 
 def run(*args):
@@ -43,10 +42,10 @@ def configure_signing(path, name, bundle_id):
     print("Local configuration: " + str(path))
 
 
-def load_signing(path):
+def load_signing(path, app_name):
     if not path.is_file():
         raise SystemExit("Local signing is not configured. Run: python3 scripts/build_macos.py "
-                         '--configure-signing "PasteHub Local Signing"')
+                         f'--app {app_name} --configure-signing "PasteHub Local Signing"')
     try:
         config = json.loads(path.read_text())
     except (OSError, ValueError) as error:
@@ -69,77 +68,109 @@ def load_signing(path):
 def main():
     root = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--resources-from", type=Path, default=Path("/Applications/PasteHub.app"))
-    parser.add_argument("--output", type=Path, default=root / "build" / "PasteHub.app")
+    parser.add_argument("--app", choices=["PasteHub", "Screenshot"], default="PasteHub")
+    parser.add_argument("--resources-from", type=Path)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--bundle-id")
-    parser.add_argument("--signing-config", type=Path, default=root / ".local-signing.json")
+    parser.add_argument("--signing-config", type=Path)
     parser.add_argument("--configure-signing", metavar="CERTIFICATE_NAME", help="绑定已有本机代码签名证书后退出")
     parser.add_argument("--version")
     parser.add_argument("--build-number", default="2610241")
     parser.add_argument("--executable", type=Path, help="使用已编译好的当前版本可执行文件")
     args = parser.parse_args()
-    signing_path = args.signing_config.expanduser().resolve()
+    app_name = args.app
+    project_root = root / app_name
+    info = plistlib.loads((project_root / "Info.plist").read_bytes())
+    product_name = info.get("CFBundleDisplayName", app_name)
+    app_filename = product_name + ".app"
+    sources = project_root / "Sources"
+    has_screenshot_encoder = app_name == "Screenshot"
+    default_bundle_id = "top.yayalu." + app_name
+    local_signing = project_root / ".local-signing.json"
+    legacy_signing = root / ".local-signing.json"
+    signing_path = (args.signing_config or local_signing).expanduser().resolve()
     if args.configure_signing:
-        configure_signing(signing_path, args.configure_signing, args.bundle_id or "top.yayalu.PasteHub")
+        configure_signing(signing_path, args.configure_signing, args.bundle_id or default_bundle_id)
         return
-    identity, configured_bundle_id = load_signing(signing_path)
-    output = args.output.expanduser().resolve()
-    if output.suffix != ".app" or output == args.resources_from.expanduser().resolve():
+    if args.signing_config is None and not signing_path.exists() and legacy_signing.is_file():
+        signing_path = legacy_signing
+    identity, configured_bundle_id = load_signing(signing_path, app_name)
+    resources_from = (args.resources_from or Path("/Applications") / app_filename).expanduser().resolve()
+    output = (args.output or project_root / "build" / app_filename).expanduser().resolve()
+    if output.suffix != ".app" or output == resources_from:
         parser.error("output must be a separate .app bundle")
-    project = (root / " .xcodeproj" / "project.pbxproj").read_text()
+    project = (project_root / (app_name + ".xcodeproj") / "project.pbxproj").read_text()
     minimum = re.search(r"MACOSX_DEPLOYMENT_TARGET = ([^;]+);", project).group(1)
     version = args.version or re.search(r"MARKETING_VERSION = ([^;]+);", project).group(1)
+    if has_screenshot_encoder and signing_path == legacy_signing:
+        configured_bundle_id = default_bundle_id
     bundle_id = args.bundle_id or configured_bundle_id
     if not re.fullmatch(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", bundle_id):
         parser.error("bundle-id is invalid")
     sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="pastehub-build-", dir=output.parent) as temporary:
+    with tempfile.TemporaryDirectory(prefix=app_name.lower() + "-build-", dir=output.parent) as temporary:
         work = Path(temporary)
-        app = work / "PasteHub.app"
+        app = work / app_filename
         contents = app / "Contents"
         resources = contents / "Resources"
-        executable = contents / "MacOS" / "PasteHub"
+        executable = contents / "MacOS" / app_name
         resources.mkdir(parents=True)
         executable.parent.mkdir(parents=True)
         if args.executable:
             shutil.copy2(args.executable, executable)
         else:
-            mozjpeg = build_mozjpeg(output.parent / "MozJPEG" / "libPasteHubMozJPEG.a", ["arm64"], minimum, sdk)
             command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "5",
                        "-default-isolation", "MainActor", "-enable-upcoming-feature",
                        "NonisolatedNonsendingByDefault", "-enable-upcoming-feature",
                        "InferIsolatedConformances", "-enable-upcoming-feature", "MemberImportVisibility",
                        "-target", "arm64-apple-macos" + minimum, "-sdk", sdk,
                        "-module-cache-path", str(output.parent / "ModuleCache"),
-                       "-O", "-whole-module-optimization", "-module-name", "PasteHub", "-o", str(executable),
-                       "-import-objc-header", str(root / "Vendor" / "MozJPEG" / "PasteHubMozJPEG.h"),
-                       str(mozjpeg), "-Xlinker", "-dead_strip"]
-            for framework in ["AppKit", "SwiftUI", "Carbon", "ScreenCaptureKit", "ServiceManagement", "Vision", "CoreImage"]:
+                       "-O", "-whole-module-optimization", "-module-name", app_name, "-o", str(executable),
+                       "-Xlinker", "-dead_strip"]
+            frameworks = ["AppKit", "SwiftUI", "Carbon"]
+            if has_screenshot_encoder:
+                mozjpeg = output.parent / "MozJPEG" / "libPasteHubMozJPEG.a"
+                run(sys.executable, project_root / "scripts" / "build_mozjpeg.py", "--output", mozjpeg,
+                    "--architectures", "arm64", "--deployment-target", minimum, "--sdk", sdk)
+                header = project_root / "Vendor" / "MozJPEG" / "PasteHubMozJPEG.h"
+                command += ["-import-objc-header", str(header), str(mozjpeg)]
+                frameworks += ["ScreenCaptureKit", "Vision", "CoreImage"]
+            else:
+                frameworks.append("ServiceManagement")
+            for framework in frameworks:
                 command += ["-framework", framework]
-            command += [str(path) for path in sorted((root / "PasteHub").rglob("*.swift"))]
-            print("Compiling PasteHub...", flush=True)
+            command += [str(path) for path in sorted(sources.rglob("*.swift"))]
+            print("Compiling " + app_name + "...", flush=True)
             run(*command)
         executable.chmod(0o755)
-        actool = subprocess.run(["xcrun", "--find", "actool"], capture_output=True, text=True)
-        if actool.returncode == 0:
-            run(actool.stdout.strip(), root / "PasteHub" / "Assets.xcassets", "--compile", resources,
-                "--platform", "macosx", "--minimum-deployment-target", minimum,
-                "--app-icon", "AppIcon", "--accent-color", "AccentColor",
-                "--output-partial-info-plist", work / "assets-info.plist")
-        else:
-            # 独立命令行工具不含 actool，沿用已安装应用的资源目录。
-            source_resources = args.resources_from / "Contents" / "Resources"
-            if not (source_resources / "Assets.car").is_file():
-                raise SystemExit("Assets.car is required. Use --resources-from with an existing PasteHub.app.")
-            shutil.copytree(source_resources, resources, dirs_exist_ok=True)
-        shutil.copytree(root / "PasteHub" / "Resources", resources, dirs_exist_ok=True)
-        info = plistlib.loads((root / "Info.plist").read_bytes())
-        info.update({"CFBundleIdentifier": bundle_id, "CFBundleName": "PasteHub",
-                     "CFBundleDisplayName": "PasteHub", "CFBundleExecutable": "PasteHub",
+        assets = sources / "Assets.xcassets"
+        if assets.is_dir():
+            actool = subprocess.run(["xcrun", "--find", "actool"], capture_output=True, text=True)
+            if actool.returncode == 0:
+                partial_info = work / "assets-info.plist"
+                command = [actool.stdout.strip(), assets, "--compile", resources,
+                           "--platform", "macosx", "--minimum-deployment-target", minimum,
+                           "--app-icon", "AppIcon", "--output-partial-info-plist", partial_info]
+                if (assets / "AccentColor.colorset").is_dir():
+                    command += ["--accent-color", "AccentColor"]
+                run(*command)
+                info.update(plistlib.loads(partial_info.read_bytes()))
+            else:
+                source_resources = resources_from / "Contents" / "Resources"
+                if not (source_resources / "Assets.car").is_file():
+                    raise SystemExit("Assets.car is required. Use --resources-from with an existing " + app_filename)
+                shutil.copy2(source_resources / "Assets.car", resources)
+                if (source_resources / "AppIcon.icns").is_file():
+                    shutil.copy2(source_resources / "AppIcon.icns", resources)
+                    info["CFBundleIconFile"] = "AppIcon"
+        if (sources / "Resources").is_dir():
+            shutil.copytree(sources / "Resources", resources, dirs_exist_ok=True)
+        info.update({"CFBundleIdentifier": bundle_id, "CFBundleName": product_name,
+                     "CFBundleDisplayName": product_name, "CFBundleExecutable": app_name,
                      "CFBundlePackageType": "APPL", "CFBundleInfoDictionaryVersion": "6.0",
                      "CFBundleShortVersionString": version, "CFBundleVersion": args.build_number,
-                     "CFBundleIconFile": "AppIcon", "LSMinimumSystemVersion": minimum,
+                     "LSMinimumSystemVersion": minimum,
                      "LSApplicationCategoryType": "public.app-category.utilities",
                      "NSHighResolutionCapable": True})
         (contents / "Info.plist").write_bytes(plistlib.dumps(info))

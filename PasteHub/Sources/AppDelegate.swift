@@ -7,7 +7,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var store = ClipboardStore()
     private(set) var settings = SettingsManager()
     private let pasteService = PasteToAppService()
-    private lazy var screenshotService = ScreenshotService(settings: settings)
     private var monitor: ClipboardMonitor!
     private var panel: FloatingPanel!
     private var statusItem: NSStatusItem!
@@ -19,7 +18,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastHotKeyTriggerTime: TimeInterval = 0
     private enum HotKeyActionID: UInt32 {
         case togglePanel = 1
-        case screenshot = 4
     }
 
     private let hotKeySignature = OSType(0x50544842) // 'PTHB'
@@ -67,7 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidResignActive(_ notification: Notification) {
-        if screenshotService.isActive { screenshotService.cancel() }
         panel?.close()
         settingsWindow?.close()
     }
@@ -85,7 +82,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let toggleItem = NSMenuItem(title: "显示 / 隐藏面板", action: #selector(togglePanel), keyEquivalent: "")
         menu.addItem(toggleItem)
-        menu.addItem(NSMenuItem(title: "截图 / 取色", action: #selector(startScreenshot), keyEquivalent: ""))
 
         menu.addItem(.separator())
 
@@ -186,13 +182,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pasteService.rememberFrontmostExternalApp()
         }
         panel?.toggle()
-    }
-
-    @objc private func startScreenshot() {
-        guard !screenshotService.isActive else { return }
-        panel?.close()
-        settingsWindow?.close()
-        screenshotService.start()
     }
 
     // MARK: - Settings
@@ -328,10 +317,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let actionID else { return }
         switch actionID {
         case .togglePanel:
-            guard !screenshotService.isActive else { return }
             handleTogglePanelHotKeyTrigger()
-        case .screenshot:
-            startScreenshot()
         }
     }
 
@@ -393,17 +379,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func registerHotKeys() {
-        settings.screenshotHotkeyRegistrationError = nil
         registerHotKey(
             id: .togglePanel,
             keyCode: settings.hotkeyKeyCode,
             modifiers: settings.hotkeyModifiers
-        )
-
-        registerHotKey(
-            id: .screenshot,
-            keyCode: settings.screenshotHotkeyKeyCode,
-            modifiers: settings.screenshotHotkeyModifiers
         )
     }
 
@@ -420,12 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             0,
             &hotKeyRef
         )
-        guard status == noErr, let hotKeyRef else {
-            if id == .screenshot {
-                settings.screenshotHotkeyRegistrationError = "截图快捷键注册失败（\(status)），可能已被占用，请更换组合；仍可通过菜单栏开始截图。"
-            }
-            return
-        }
+        guard status == noErr, let hotKeyRef else { return }
         hotKeyRefs[id.rawValue] = hotKeyRef
     }
 
@@ -445,7 +419,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func teardownMonitors() {
-        screenshotService.cancel()
         pasteService.cancelPendingPaste()
         monitor?.stop()
         teardownHotKeyMonitors()

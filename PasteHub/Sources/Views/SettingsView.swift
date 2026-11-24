@@ -469,17 +469,6 @@ private struct GeneralTab: View {
                 }
             }
 
-            SettingsCard(title: "截图导出") {
-                SettingsRow(
-                    title: "MozJPEG 压缩",
-                    subtitle: "截图导出为 JPG 时启用；关闭后使用系统 JPG 编码器。"
-                ) {
-                    Toggle("MozJPEG 压缩", isOn: $settings.screenshotMozJPEGEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-            }
-
             SettingsCard(
                 title: "面板",
                 subtitle: ""
@@ -569,7 +558,6 @@ private struct GeneralTab: View {
 private struct HotkeyTab: View {
     var settings: SettingsManager
     @State private var isAccessibilityTrusted = AXIsProcessTrusted()
-    @State private var hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
     @State private var lastCheckedAt = Date()
 
     private var executablePath: String {
@@ -609,26 +597,7 @@ private struct HotkeyTab: View {
 
                     SettingsSeparator()
 
-                    SettingsRow(
-                        title: "截图 / 取色",
-                        subtitle: "默认 ⌥⇧A。Esc 取消，Shift 切换 HEX / RGB，⌘C 复制色值。"
-                    ) {
-                        HotkeyRecorderButton(
-                            displayString: settings.screenshotHotkeyDisplayString,
-                            onRecorded: { code, mods in
-                                settings.setScreenshotHotkey(keyCode: code, modifiers: mods)
-                            }
-                        )
-                    }
-
-                    if let error = settings.screenshotHotkeyRegistrationError {
-                        Text(error).font(.system(size: 12)).foregroundStyle(.red)
-                    }
-
-                    SettingsSeparator()
-
                     SettingsHint(text: "单击卡片会先复制内容，再尝试自动键入。首次授予辅助功能权限后建议重启 PasteHub。")
-                    SettingsHint(text: "避免给多个动作设置同一组快捷键，以免部分动作不生效。")
                 }
             }
 
@@ -641,26 +610,6 @@ private struct HotkeyTab: View {
                     ShortcutRow(label: "完成键入条目", shortcut: "单击卡片")
                     ShortcutRow(label: "重新复制 / 标签 / 删除", shortcut: "卡片按钮或右键菜单")
                 }
-            }
-
-            SettingsCard(
-                title: "截图权限",
-                subtitle: "截图和取色需要屏幕录制权限；不采集音频。"
-            ) {
-                SettingsRow(title: "屏幕录制权限") {
-                    Text(hasScreenRecordingPermission ? "已授权" : "未授权")
-                        .foregroundStyle(hasScreenRecordingPermission ? .green : .red)
-                }
-                HStack(spacing: 10) {
-                    Button("刷新状态") {
-                        hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
-                    }
-                    Button("打开屏幕录制设置") {
-                        ScreenshotService.openScreenRecordingSettings()
-                    }
-                }
-                .buttonStyle(.bordered)
-                SettingsHint(text: "首次截图会请求授权。授权后若仍无法截图，请重启 PasteHub；应用签名、Bundle ID 或安装路径改变后可能需要重新授权。保存时通过系统窗口选择文件和目录。")
             }
 
             SettingsCard(
@@ -728,10 +677,6 @@ private struct HotkeyTab: View {
         }
         .onAppear {
             refreshAccessibilityState()
-            hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
         }
     }
 
