@@ -32,14 +32,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "ASimpleShot")
-        item.button?.image?.isTemplate = true
+        let icon = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "ASimpleShot")?
+            .withSymbolConfiguration(.init(pointSize: 17, weight: .bold, scale: .medium))
+        icon?.isTemplate = true
+        item.button?.image = icon
 
         let menu = NSMenu()
-        menu.addItem(withTitle: "截图 / 取色", action: #selector(startScreenshot), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "设置...", action: #selector(showSettings), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: String(localized: "截图 / 取色"), action: #selector(startScreenshot), keyEquivalent: "").target = self
+        menu.addItem(withTitle: String(localized: "设置..."), action: #selector(showSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "退出 ASimpleShot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q").target = NSApp
+        menu.addItem(withTitle: String(localized: "退出 ASimpleShot"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q").target = NSApp
         item.menu = menu
         statusItem = item
     }
@@ -55,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindow == nil {
             let controller = NSHostingController(rootView: SettingsView(settings: settings))
             let window = NSWindow(contentViewController: controller)
-            window.title = "ASimpleShot 设置"
+            window.title = String(localized: "ASimpleShot 设置")
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 460, height: 360))
@@ -85,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             &hotKeyHandlerRef
         )
         guard status == noErr else {
-            settings.screenshotHotkeyRegistrationError = "无法监听截图快捷键（\(status)），仍可通过菜单栏开始截图。"
+            settings.screenshotHotkeyRegistrationError = String(localized: "无法监听截图快捷键（\(status)），仍可通过菜单栏开始截图。")
             return
         }
         registerHotKey()
@@ -112,6 +114,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         settings.screenshotHotkeyRegistrationError = status == noErr
             ? nil
-            : "截图快捷键注册失败（\(status)），可能已被占用，请更换组合。"
+            : String(localized: "截图快捷键注册失败（\(status)），可能已被占用，请更换组合。")
     }
 }

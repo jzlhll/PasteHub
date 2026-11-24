@@ -8,14 +8,14 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
     var isFreehand: Bool { self == .pen || isBrush }
     var title: String {
         switch self {
-        case .rectangle: return "矩形"
-        case .ellipse: return "椭圆"
-        case .pen: return "画笔"
-        case .line: return "直线"
-        case .arrow: return "箭头"
-        case .mosaic: return "马赛克"
-        case .solid: return "纯色涂抹"
-        case .text: return "文字（T）"
+        case .rectangle: return String(localized: "矩形")
+        case .ellipse: return String(localized: "椭圆")
+        case .pen: return String(localized: "画笔")
+        case .line: return String(localized: "直线")
+        case .arrow: return String(localized: "箭头")
+        case .mosaic: return String(localized: "马赛克")
+        case .solid: return String(localized: "纯色涂抹")
+        case .text: return String(localized: "文字（T）")
         }
     }
     var symbol: String {

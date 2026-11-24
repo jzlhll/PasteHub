@@ -8,10 +8,10 @@ enum ScreenshotQualityPreset: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .high: return "无损"
-        case .medium: return "高"
-        case .low: return "普通"
-        case .custom: return "自定义"
+        case .high: return String(localized: "无损")
+        case .medium: return String(localized: "高")
+        case .low: return String(localized: "普通")
+        case .custom: return String(localized: "自定义")
         }
     }
 }

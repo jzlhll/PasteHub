@@ -16,9 +16,9 @@ nonisolated enum ClipboardContentType: String, Codable {
 
     var label: String {
         switch self {
-        case .text:  return "文本"
-        case .image: return "图片"
-        case .file:  return "文件"
+        case .text:  return String(localized: "文本")
+        case .image: return String(localized: "图片")
+        case .file:  return String(localized: "文件")
         }
     }
 }
@@ -87,7 +87,7 @@ nonisolated struct ClipboardItem: Identifiable, Codable, Equatable {
         case .text:
             return String(content.prefix(200))
         case .image:
-            return "[图片]"
+            return String(localized: "[图片]")
         case .file:
             return contentURL?.lastPathComponent ?? content
         }

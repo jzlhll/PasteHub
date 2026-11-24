@@ -97,6 +97,6 @@ final class SettingsManager {
             118: "F4", 120: "F2", 122: "F1",
             123: "\u{2190}", 124: "\u{2192}", 125: "\u{2193}", 126: "\u{2191}",
         ]
-        return map[keyCode] ?? "Key\(keyCode)"
+        return map[keyCode] ?? String(localized: "Key\(keyCode)")
     }
 }

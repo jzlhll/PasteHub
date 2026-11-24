@@ -12,9 +12,9 @@ final class ScreenshotEditorState {
         case failed(String)
         case timedOut
 
-        var symbol: String {
+        var symbol: String? {
             switch self {
-            case .idle, .selecting, .recognizing, .result: return "text.viewfinder"
+            case .idle, .selecting, .recognizing, .result: return nil
             case .failed: return "exclamationmark.triangle.fill"
             case .timedOut: return "clock.badge.exclamationmark"
             }
@@ -22,11 +22,11 @@ final class ScreenshotEditorState {
 
         var title: String {
             switch self {
-            case .idle, .result: return "框选识别文字"
-            case .selecting: return "在截图内框选需要识别的文字（Esc 返回）"
-            case .recognizing: return "正在提取文字"
+            case .idle, .result: return String(localized: "框选识别文字")
+            case .selecting: return String(localized: "在截图内框选需要识别的文字（Esc 返回）")
+            case .recognizing: return String(localized: "正在提取文字")
             case .failed(let message): return message
-            case .timedOut: return "提取超时，请重试"
+            case .timedOut: return String(localized: "提取超时，请重试")
             }
         }
 
@@ -169,7 +169,7 @@ struct ScreenshotToolbar: View {
     private static let outerPadding: CGFloat = 4
     private static let horizontalPadding: CGFloat = 6
     private static var contentWidth: CGFloat {
-        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 6) + horizontalPadding * 2
+        buttonWidth * CGFloat(ScreenshotTool.allCases.count + 5) + horizontalPadding * 2
     }
 
     static func layoutSize(hasOptions: Bool, showingExportOptions: Bool) -> CGSize {
@@ -189,12 +189,11 @@ struct ScreenshotToolbar: View {
                         state.onChange?()
                     }
                 }
-                icon("arrow.uturn.backward", title: "撤销（⌘Z）", size: 18) { state.onUndo?() }
+                icon("arrow.uturn.backward", title: String(localized: "撤销（⌘Z）"), size: 18) { state.onUndo?() }
                     .overlay(alignment: .leading) {
                         Divider().frame(width: 1, height: 20).allowsHitTesting(false)
                     }
                     .disabled(!state.canUndo)
-                textRecognitionButton
                 Button {
                     state.isShowingExportOptions.toggle()
                     if state.isShowingExportOptions { state.tool = nil }
@@ -209,11 +208,11 @@ struct ScreenshotToolbar: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("导出质量：\(state.qualityPreset.title)")
-                .accessibilityLabel("导出质量：\(state.qualityPreset.title)")
-                icon("arrow.down.to.line", title: "保存为 \(state.exportOptions.format.title)", size: 17) { state.onSave?() }
-                icon("xmark", title: "取消（Esc）", size: 17, tint: .red) { state.onCancel?() }
-                icon("checkmark", title: "复制截图（Enter / 双击选区）", tint: .green) { state.onCopy?() }
+                .help(String(localized: "导出质量：\(state.qualityPreset.title)"))
+                .accessibilityLabel(String(localized: "导出质量：\(state.qualityPreset.title)"))
+                icon("arrow.down.to.line", title: String(localized: "保存为 \(state.exportOptions.format.title)"), size: 17) { state.onSave?() }
+                icon("xmark", title: String(localized: "取消（Esc）"), size: 17, tint: .red) { state.onCancel?() }
+                icon("checkmark", title: String(localized: "复制截图（Enter / 双击选区）"), tint: .green) { state.onCopy?() }
             }
             .padding(.horizontal, Self.horizontalPadding)
             .frame(width: Self.contentWidth, height: Self.rowHeight)
@@ -243,14 +242,17 @@ struct ScreenshotToolbar: View {
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .help("字号 \(Int(size))")
-                            .accessibilityLabel("字号 \(Int(size))")
+                            .help(String(localized: "字号 \(Int(size))"))
+                            .accessibilityLabel(String(localized: "字号 \(Int(size))"))
                             .accessibilityAddTraits(state.fontSize == size ? .isSelected : [])
                         }
                     } else {
                         HStack(spacing: 0) {
                             ForEach(widths.indices, id: \.self) { index in
                                 let width = widths[index]
+                                let sizeLabel = tool.isBrush
+                                    ? String(localized: "笔刷直径 \(Int(width))")
+                                    : String(localized: "线宽 \(Int(width))")
                                 Button {
                                     state.activeLineWidth = width
                                     state.onChange?()
@@ -261,8 +263,8 @@ struct ScreenshotToolbar: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .help("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
-                                .accessibilityLabel("\(tool.isBrush ? "笔刷直径" : "线宽") \(Int(width))")
+                                .help(sizeLabel)
+                                .accessibilityLabel(sizeLabel)
                                 .accessibilityAddTraits(state.activeLineWidth == width ? .isSelected : [])
                             }
                         }
@@ -295,7 +297,7 @@ struct ScreenshotToolbar: View {
                                 }
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(["红色", "黄色", "绿色", "蓝色", "黑色", "灰色", "白色"][index])
+                            .accessibilityLabel([String(localized: "红色"), String(localized: "黄色"), String(localized: "绿色"), String(localized: "蓝色"), String(localized: "黑色"), String(localized: "灰色"), String(localized: "白色")][index])
                         }
                     }
                 }
@@ -308,26 +310,6 @@ struct ScreenshotToolbar: View {
         .fixedSize()
         .padding(Self.outerPadding)
         .environment(\.colorScheme, .light)
-    }
-
-    private var textRecognitionButton: some View {
-        Button { state.onRecognizeText?() } label: {
-            Group {
-                if state.textRecognitionState == .recognizing {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: state.textRecognitionState.symbol)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(state.textRecognitionState.tint)
-                }
-            }
-            .frame(width: Self.buttonWidth, height: Self.rowHeight)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(state.textRecognitionState == .recognizing)
-        .help(state.textRecognitionState.title)
-        .accessibilityLabel(state.textRecognitionState.title)
     }
 
     // 按字形的宽高和实心面积校准视觉大小，保持按钮点击区域一致。
@@ -359,5 +341,90 @@ struct ScreenshotToolbar: View {
         .buttonStyle(.plain)
         .help(title)
         .accessibilityLabel(title)
+    }
+}
+
+struct ScreenshotSelectionActions: View {
+    let state: ScreenshotEditorState
+    let isVertical: Bool
+
+    private enum Segment: CaseIterable, Identifiable {
+        case textRecognition
+        case scrollingCapture
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .textRecognition: return String(localized: "文字识别")
+            case .scrollingCapture: return String(localized: "滚动截图")
+            }
+        }
+    }
+
+    private static let segmentSize: CGSize = {
+        let font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        let widths = Segment.allCases.map { segment in
+            let width = (segment.title as NSString).size(withAttributes: [.font: font]).width
+            return width + (segment == .textRecognition ? 18 : 0)
+        }
+        return CGSize(width: max(94, ceil(widths.max() ?? 0) + 20), height: 32)
+    }()
+
+    static func layoutSize(isVertical: Bool) -> CGSize {
+        let count = CGFloat(Segment.allCases.count)
+        return CGSize(width: segmentSize.width * (isVertical ? 1 : count),
+                      height: segmentSize.height * (isVertical ? count : 1))
+    }
+
+    var body: some View {
+        let layout = isVertical ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        layout {
+            ForEach(Segment.allCases) { segment in
+                let isRecognition = segment == .textRecognition
+                let status = state.textRecognitionState
+                Button {
+                    if isRecognition { state.onRecognizeText?() }
+                } label: {
+                    HStack(spacing: 4) {
+                        if isRecognition {
+                            if status == .recognizing {
+                                ProgressView().controlSize(.mini).accessibilityHidden(true)
+                            } else if let symbol = status.symbol {
+                                Image(systemName: symbol).accessibilityHidden(true)
+                            }
+                        }
+                        Text(segment.title)
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isRecognition ? status.tint : Color.gray)
+                    .frame(width: Self.segmentSize.width, height: Self.segmentSize.height)
+                    .background(isRecognition && (status == .selecting || status == .result)
+                                ? Color.blue.opacity(0.10) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!isRecognition || status == .recognizing)
+                .help(isRecognition ? status.title : segment.title)
+                .accessibilityHint(isRecognition ? status.title : "")
+                .overlay(alignment: isVertical ? .top : .leading) {
+                    if segment != Segment.allCases.first {
+                        Rectangle()
+                            .fill(.black.opacity(0.12))
+                            .frame(width: isVertical ? Self.segmentSize.width : 1,
+                                   height: isVertical ? 1 : Self.segmentSize.height)
+                            .allowsHitTesting(false)
+                    }
+                }
+            }
+        }
+        .background(.white)
+        .clipShape(.rect(cornerRadius: 7))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(.black.opacity(0.12))
+                .allowsHitTesting(false)
+        }
+        .environment(\.colorScheme, .light)
     }
 }

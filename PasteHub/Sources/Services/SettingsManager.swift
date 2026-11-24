@@ -19,10 +19,10 @@ enum PanelEdge: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .bottom: return "底部"
-        case .top: return "顶部"
-        case .left: return "左侧"
-        case .right: return "右侧"
+        case .bottom: return String(localized: "底部")
+        case .top: return String(localized: "顶部")
+        case .left: return String(localized: "左侧")
+        case .right: return String(localized: "右侧")
         }
     }
 }
@@ -36,9 +36,9 @@ enum CompactPanelSize: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .small: return "小"
-        case .medium: return "中"
-        case .large: return "大"
+        case .small: return String(localized: "小")
+        case .medium: return String(localized: "中")
+        case .large: return String(localized: "大")
         }
     }
 
@@ -60,9 +60,9 @@ enum CompactDensity: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .low: return "宽松"
-        case .medium: return "均衡"
-        case .high: return "紧凑"
+        case .low: return String(localized: "宽松")
+        case .medium: return String(localized: "均衡")
+        case .high: return String(localized: "紧凑")
         }
     }
 }
@@ -76,9 +76,9 @@ enum CompactPanelPosition: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .statusItem: return "状态栏图标处"
-        case .followMouse: return "跟随鼠标指针"
-        case .screenCenter: return "始终屏幕中间"
+        case .statusItem: return String(localized: "状态栏图标处")
+        case .followMouse: return String(localized: "跟随鼠标指针")
+        case .screenCenter: return String(localized: "始终屏幕中间")
         }
     }
 
@@ -289,7 +289,7 @@ final class SettingsManager {
             118: "F4", 120: "F2", 122: "F1",
             123: "\u{2190}", 124: "\u{2192}", 125: "\u{2193}", 126: "\u{2191}",
         ]
-        return map[keyCode] ?? "Key\(keyCode)"
+        return map[keyCode] ?? String(localized: "Key\(keyCode)")
     }
 
     private func updateLoginItem() {

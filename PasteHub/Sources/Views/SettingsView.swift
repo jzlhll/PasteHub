@@ -12,10 +12,10 @@ private enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .general: return "通用"
-        case .hotkey: return "快捷键"
-        case .excludedApps: return "排除应用"
-        case .about: return "关于"
+        case .general: return String(localized: "通用")
+        case .hotkey: return String(localized: "快捷键")
+        case .excludedApps: return String(localized: "排除应用")
+        case .about: return String(localized: "关于")
         }
     }
 
@@ -49,7 +49,7 @@ struct SettingsView: View {
                 if let selection {
                     SettingsDetailView(section: selection, settings: settings)
                 } else {
-                    ContentUnavailableView("选择设置项", systemImage: "sidebar.left")
+                    ContentUnavailableView(String(localized: "选择设置项"), systemImage: "sidebar.left")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -399,54 +399,54 @@ private struct GeneralTab: View {
     }
 
     private var compactDensitySubtitle: String {
-        "控制同屏可见条目数和单条信息详略。界面越紧凑，同屏显示越多。"
+        String(localized: "控制同屏可见条目数和单条信息详略。界面越紧凑，同屏显示越多。")
     }
 
     private var compactDensityStateHint: String {
         switch settings.compactDensity {
         case .low:
-            return "当前档位：宽松。使用卡片瀑布流，单条信息展示更完整，同屏条目较少。"
+            return String(localized: "当前档位：宽松。使用卡片瀑布流，单条信息展示更完整，同屏条目较少。")
         case .medium:
-            return "当前档位：均衡。使用线性列表，保留标题与来源信息，同屏条目更多。"
+            return String(localized: "当前档位：均衡。使用线性列表，保留标题与来源信息，同屏条目更多。")
         case .high:
-            return "当前档位：紧凑。使用极简线性列表，同屏条目最多，适合快速定位。"
+            return String(localized: "当前档位：紧凑。使用极简线性列表，同屏条目最多，适合快速定位。")
         }
     }
 
     private var compactPositionSubtitle: String {
         if settings.compactDensity == .high {
-            return "当前档位支持“状态栏图标处 / 跟随鼠标指针 / 屏幕中间”。"
+            return String(localized: "当前档位支持“状态栏图标处 / 跟随鼠标指针 / 屏幕中间”。")
         }
-        return "当前档位不支持“跟随鼠标指针”，仅支持“状态栏图标处 / 屏幕中间”。"
+        return String(localized: "当前档位不支持“跟随鼠标指针”，仅支持“状态栏图标处 / 屏幕中间”。")
     }
 
     private var compactSizeSubtitle: String {
         if isCompactSizeLocked {
-            return "当前组合固定为 10 条列表高度，面板大小不生效。"
+            return String(localized: "当前组合固定为 10 条列表高度，面板大小不生效。")
         }
-        return "小 / 中 / 大分别按屏幕高度的 45% / 60% / 75% 计算。"
+        return String(localized: "小 / 中 / 大分别按屏幕高度的 45% / 60% / 75% 计算。")
     }
 
     private var compactPanelStateHint: String {
         if isCompactSizeLocked {
-            return "当前状态：紧凑 + 跟随鼠标指针。面板固定为最近 10 条，优先快速粘贴。"
+            return String(localized: "当前状态：紧凑 + 跟随鼠标指针。面板固定为最近 10 条，优先快速粘贴。")
         }
-        return "当前状态：\(settings.compactDensity.title)档位 · \(settings.compactPanelPosition.title) · 面板\(settings.compactPanelSize.title)尺寸。"
+        return String(localized: "当前状态：\(settings.compactDensity.title)档位 · \(settings.compactPanelPosition.title) · 面板\(settings.compactPanelSize.title)尺寸。")
     }
 
     var body: some View {
         SettingsPane {
             SettingsCard(
-                title: "历史记录",
+                title: String(localized: "历史记录"),
                 subtitle: ""
             ) {
                 SettingsRow(
-                    title: "最大保留条数",
-                    subtitle: "超过上限后，旧记录会自动按时间清理。"
+                    title: String(localized: "最大保留条数"),
+                    subtitle: String(localized: "超过上限后，旧记录会自动按时间清理。")
                 ) {
-                    Picker("最大保留条数", selection: $settings.maxHistoryCount) {
+                    Picker(String(localized: "最大保留条数"), selection: $settings.maxHistoryCount) {
                         ForEach(countOptions, id: \.self) { count in
-                            Text("\(count) 条").tag(count)
+                            Text(String(localized: "\(count) 条")).tag(count)
                         }
                     }
                     .pickerStyle(.menu)
@@ -456,12 +456,12 @@ private struct GeneralTab: View {
             }
 
             SettingsCard(
-                title: "系统",
+                title: String(localized: "系统"),
                 subtitle: ""
             ) {
                 SettingsRow(
-                    title: "开机自动启动",
-                    subtitle: "登录后自动在后台启动 PasteHub。"
+                    title: String(localized: "开机自动启动"),
+                    subtitle: String(localized: "登录后自动在后台启动 PasteHub。")
                 ) {
                     Toggle("", isOn: $settings.launchAtLogin)
                         .labelsHidden()
@@ -470,13 +470,13 @@ private struct GeneralTab: View {
             }
 
             SettingsCard(
-                title: "面板",
+                title: String(localized: "面板"),
                 subtitle: ""
             ) {
                 VStack(alignment: .leading, spacing: 14) {
                     SettingsRow(
-                        title: "紧凑模式",
-                        subtitle: "开启后，单击状态栏图标会直接弹出紧凑面板。"
+                        title: String(localized: "紧凑模式"),
+                        subtitle: String(localized: "开启后，单击状态栏图标会直接弹出紧凑面板。")
                     ) {
                         Toggle("", isOn: $settings.compactModeEnabled)
                             .labelsHidden()
@@ -487,7 +487,7 @@ private struct GeneralTab: View {
 
                     if settings.compactModeEnabled {
                         SettingsRow(
-                            title: "显示密度",
+                            title: String(localized: "显示密度"),
                             subtitle: compactDensitySubtitle,
                             accessoryColumnWidth: 340
                         ) {
@@ -499,10 +499,10 @@ private struct GeneralTab: View {
                         SettingsSeparator()
 
                         SettingsRow(
-                            title: "紧凑面板位置",
+                            title: String(localized: "紧凑面板位置"),
                             subtitle: compactPositionSubtitle
                         ) {
-                            Picker("紧凑面板位置", selection: $settings.compactPanelPosition) {
+                            Picker(String(localized: "紧凑面板位置"), selection: $settings.compactPanelPosition) {
                                 ForEach(compactPositionOptions) { position in
                                     Text(position.title).tag(position)
                                 }
@@ -515,10 +515,10 @@ private struct GeneralTab: View {
                         SettingsSeparator()
 
                         SettingsRow(
-                            title: "紧凑面板大小",
+                            title: String(localized: "紧凑面板大小"),
                             subtitle: compactSizeSubtitle
                         ) {
-                            Picker("紧凑面板大小", selection: $settings.compactPanelSize) {
+                            Picker(String(localized: "紧凑面板大小"), selection: $settings.compactPanelSize) {
                                 ForEach(CompactPanelSize.allCases) { size in
                                     Text(size.title).tag(size)
                                 }
@@ -532,10 +532,10 @@ private struct GeneralTab: View {
                         SettingsHint(text: compactPanelStateHint)
                     } else {
                         SettingsRow(
-                            title: "默认弹出位置",
-                            subtitle: "非紧凑模式下，从这个方向展开主面板。"
+                            title: String(localized: "默认弹出位置"),
+                            subtitle: String(localized: "非紧凑模式下，从这个方向展开主面板。")
                         ) {
-                            Picker("弹出位置", selection: $settings.panelEdge) {
+                            Picker(String(localized: "弹出位置"), selection: $settings.panelEdge) {
                                 ForEach(PanelEdge.allCases) { edge in
                                     Text(edge.title).tag(edge)
                                 }
@@ -545,7 +545,7 @@ private struct GeneralTab: View {
                             .frame(width: 110, alignment: .trailing)
                         }
 
-                        SettingsHint(text: "可随时开启紧凑模式，改为单击状态栏图标直接呼出。")
+                        SettingsHint(text: String(localized: "可随时开启紧凑模式，改为单击状态栏图标直接呼出。"))
                     }
                 }
             }
@@ -561,7 +561,7 @@ private struct HotkeyTab: View {
     @State private var lastCheckedAt = Date()
 
     private var executablePath: String {
-        Bundle.main.executableURL?.path ?? "未知"
+        Bundle.main.executableURL?.path ?? String(localized: "未知")
     }
 
     private var bundlePath: String {
@@ -569,7 +569,7 @@ private struct HotkeyTab: View {
     }
 
     private var bundleID: String {
-        Bundle.main.bundleIdentifier ?? "未知"
+        Bundle.main.bundleIdentifier ?? String(localized: "未知")
     }
 
     private var processID: String {
@@ -579,13 +579,13 @@ private struct HotkeyTab: View {
     var body: some View {
         SettingsPane {
             SettingsCard(
-                title: "全局快捷键",
+                title: String(localized: "全局快捷键"),
                 subtitle: ""
             ) {
                 VStack(alignment: .leading, spacing: 14) {
                     SettingsRow(
-                        title: "显示 / 隐藏面板",
-                        subtitle: "点击录制区域后直接按下新的快捷键组合，按 Esc 取消。"
+                        title: String(localized: "显示 / 隐藏面板"),
+                        subtitle: String(localized: "点击录制区域后直接按下新的快捷键组合，按 Esc 取消。")
                     ) {
                         HotkeyRecorderButton(
                             displayString: settings.hotkeyDisplayString,
@@ -597,28 +597,28 @@ private struct HotkeyTab: View {
 
                     SettingsSeparator()
 
-                    SettingsHint(text: "单击卡片会先复制内容，再尝试自动键入。首次授予辅助功能权限后建议重启 PasteHub。")
+                    SettingsHint(text: String(localized: "单击卡片会先复制内容，再尝试自动键入。首次授予辅助功能权限后建议重启 PasteHub。"))
                 }
             }
 
             SettingsCard(
-                title: "其他内置入口",
+                title: String(localized: "其他内置入口"),
                 subtitle: ""
             ) {
                 VStack(alignment: .leading, spacing: 12) {
-                    ShortcutRow(label: "退出应用", shortcut: "\u{2318}Q")
-                    ShortcutRow(label: "完成键入条目", shortcut: "单击卡片")
-                    ShortcutRow(label: "重新复制 / 标签 / 删除", shortcut: "卡片按钮或右键菜单")
+                    ShortcutRow(label: String(localized: "退出应用"), shortcut: "\u{2318}Q")
+                    ShortcutRow(label: String(localized: "完成键入条目"), shortcut: String(localized: "单击卡片"))
+                    ShortcutRow(label: String(localized: "重新复制 / 标签 / 删除"), shortcut: String(localized: "卡片按钮或右键菜单"))
                 }
             }
 
             SettingsCard(
-                title: "辅助功能权限诊断",
+                title: String(localized: "辅助功能权限诊断"),
                 subtitle: ""
             ) {
                 VStack(alignment: .leading, spacing: 14) {
-                    SettingsRow(title: "辅助功能权限") {
-                        Text(isAccessibilityTrusted ? "已授权" : "未授权")
+                    SettingsRow(title: String(localized: "辅助功能权限")) {
+                        Text(isAccessibilityTrusted ? String(localized: "已授权") : String(localized: "未授权"))
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(isAccessibilityTrusted ? .green : .red)
                     }
@@ -626,13 +626,13 @@ private struct HotkeyTab: View {
                     SettingsSeparator()
 
                     SettingsMetricRow(title: "Bundle ID", value: bundleID, allowsSelection: true)
-                    SettingsMetricRow(title: "进程 PID", value: processID, allowsSelection: true)
-                    SettingsMetricRow(title: "上次检测", value: Self.timeFormatter.string(from: lastCheckedAt))
+                    SettingsMetricRow(title: String(localized: "进程 PID"), value: processID, allowsSelection: true)
+                    SettingsMetricRow(title: String(localized: "上次检测"), value: Self.timeFormatter.string(from: lastCheckedAt))
 
                     SettingsSeparator()
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("当前可执行路径")
+                        Text(String(localized: "当前可执行路径"))
                             .font(.system(size: 13, weight: .semibold))
                         Text(executablePath)
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -642,7 +642,7 @@ private struct HotkeyTab: View {
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("当前 Bundle 路径")
+                        Text(String(localized: "当前 Bundle 路径"))
                             .font(.system(size: 13, weight: .semibold))
                         Text(bundlePath)
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -654,24 +654,24 @@ private struct HotkeyTab: View {
                     SettingsSeparator()
 
                     HStack(spacing: 10) {
-                        Button("刷新状态") {
+                        Button(String(localized: "刷新状态")) {
                             refreshAccessibilityState()
                         }
                         .buttonStyle(.bordered)
 
-                        Button("打开辅助功能设置") {
+                        Button(String(localized: "打开辅助功能设置")) {
                             openAccessibilitySettings()
                         }
                         .buttonStyle(.borderedProminent)
 
-                        Button("重置提示缓存") {
+                        Button(String(localized: "重置提示缓存")) {
                             PasteToAppService.resetAccessibilityPromptCache()
                             refreshAccessibilityState()
                         }
                         .buttonStyle(.bordered)
                     }
 
-                    SettingsHint(text: "若路径与你在系统“辅助功能”里勾选的 PasteHub 不一致，会导致一直提示未授权。")
+                    SettingsHint(text: String(localized: "若路径与你在系统“辅助功能”里勾选的 PasteHub 不一致，会导致一直提示未授权。"))
                 }
             }
         }
@@ -748,7 +748,7 @@ private struct ExcludedAppsTab: View {
     var body: some View {
         SettingsPane {
             SettingsCard(
-                title: "排除应用",
+                title: String(localized: "排除应用"),
                 subtitle: ""
             ) {
                 VStack(alignment: .leading, spacing: 16) {
@@ -757,12 +757,12 @@ private struct ExcludedAppsTab: View {
                             Image(systemName: "hand.raised.slash")
                                 .font(.system(size: 30, weight: .medium))
                                 .foregroundStyle(.secondary)
-                            Text("暂无排除应用")
+                            Text(String(localized: "暂无排除应用"))
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            Text("可从当前正在运行的应用里快速加入排除名单。")
+                            Text(String(localized: "可从当前正在运行的应用里快速加入排除名单。"))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
-                            Text("添加到这里的应用将不会被 PasteHub 记录")
+                            Text(String(localized: "添加到这里的应用将不会被 PasteHub 记录"))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }
@@ -821,10 +821,10 @@ private struct ExcludedAppsTab: View {
                         }
 
                         if availableApps.isEmpty {
-                            Text("无可添加的运行中应用")
+                            Text(String(localized: "无可添加的运行中应用"))
                         }
                     } label: {
-                        Label("添加正在运行的应用", systemImage: "plus")
+                        Label(String(localized: "添加正在运行的应用"), systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                     .fixedSize()
@@ -850,11 +850,11 @@ private struct AboutTab: View {
     private let weiboURL = URL(string: "https://weibo.com/u/1788149651")!
 
     private var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? String(localized: "Unknown")
     }
 
     private var build: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? String(localized: "Unknown")
     }
 
     var body: some View {
@@ -870,7 +870,7 @@ private struct AboutTab: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("PasteHub")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
-                            Text("简洁高效的剪贴板助手")
+                            Text(String(localized: "简洁高效的剪贴板助手"))
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
@@ -885,11 +885,11 @@ private struct AboutTab: View {
 
             VStack(spacing: 10) {
                 HStack(spacing: 6) {
-                    AboutIconLink(asset: "SocialXiaohongshu", tip: "小红书", destination: xiaohongshuURL)
-                    AboutIconLink(asset: "SocialEmail", tip: "邮箱", destination: URL(string: "mailto:hfl1995@gmail.com")!)
-                    AboutIconLink(asset: "SocialWeibo", tip: "微博", destination: weiboURL)
+                    AboutIconLink(asset: "SocialXiaohongshu", tip: String(localized: "小红书"), destination: xiaohongshuURL)
+                    AboutIconLink(asset: "SocialEmail", tip: String(localized: "邮箱"), destination: URL(string: "mailto:hfl1995@gmail.com")!)
+                    AboutIconLink(asset: "SocialWeibo", tip: String(localized: "微博"), destination: weiboURL)
                     AboutFooterLink(icon: "cat.fill", label: "GitHub", destination: githubURL)
-                    AboutFooterLink(icon: "heart.fill", label: "酷安", destination: coolapkURL)
+                    AboutFooterLink(icon: "heart.fill", label: String(localized: "酷安"), destination: coolapkURL)
                 }
 
                 Text("\(version)(\(build))")
@@ -975,7 +975,7 @@ private struct AboutIconLink: View {
                     .saturation(isHovering ? 1 : 0)
                     .opacity(isHovering ? 1 : 0.55)
 
-                Text(isMailLink && didCopy ? "已复制" : tip)
+                Text(isMailLink && didCopy ? String(localized: "已复制") : tip)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
             }
             .foregroundStyle((isHovering || (isMailLink && didCopy)) ? Color.accentColor : .secondary)
@@ -991,7 +991,7 @@ private struct AboutIconLink: View {
             .animation(.easeOut(duration: 0.15), value: didCopy)
         }
         .buttonStyle(.plain)
-        .help(isMailLink ? (didCopy ? "已复制邮箱地址" : "复制邮箱地址") : tip)
+        .help(isMailLink ? (didCopy ? String(localized: "已复制邮箱地址") : String(localized: "复制邮箱地址")) : tip)
     }
 }
 
@@ -1016,7 +1016,7 @@ private struct HotkeyRecorderButton: View {
             }
 
             Button { isRecording = true } label: {
-                Text(isRecording ? "按下快捷键组合..." : displayString)
+                Text(isRecording ? String(localized: "按下快捷键组合...") : displayString)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .frame(minWidth: 120)
                     .padding(.horizontal, 12)

@@ -7,8 +7,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("快捷键") {
-                LabeledContent("截图 / 取色") {
+            Section(String(localized: "快捷键")) {
+                LabeledContent(String(localized: "截图 / 取色")) {
                     HotkeyRecorderButton(
                         displayString: settings.screenshotHotkeyDisplayString,
                         onRecorded: { code, modifiers in
@@ -22,26 +22,26 @@ struct SettingsView: View {
                 }
             }
 
-            Section("截图导出") {
-                Toggle("MozJPEG 压缩", isOn: $settings.screenshotMozJPEGEnabled)
-                Text("开启时使用 MozJPEG 编码 JPG，关闭时使用系统 JPG 编码器。")
+            Section(String(localized: "截图导出")) {
+                Toggle(String(localized: "MozJPEG 压缩"), isOn: $settings.screenshotMozJPEGEnabled)
+                Text(String(localized: "开启时使用 MozJPEG 编码 JPG，关闭时使用系统 JPG 编码器。"))
                     .foregroundStyle(.secondary)
             }
 
-            Section("权限") {
-                LabeledContent("截图权限") {
-                    Text(hasScreenRecordingPermission ? "已授权" : "未授权")
+            Section(String(localized: "权限")) {
+                LabeledContent(String(localized: "截图权限")) {
+                    Text(hasScreenRecordingPermission ? String(localized: "已授权") : String(localized: "未授权"))
                         .foregroundStyle(hasScreenRecordingPermission ? .green : .red)
                 }
                 HStack {
-                    Button("刷新状态") {
+                    Button(String(localized: "刷新状态")) {
                         hasScreenRecordingPermission = ScreenshotService.hasScreenRecordingPermission
                     }
-                    Button("打开系统设置") {
+                    Button(String(localized: "打开系统设置")) {
                         ScreenshotService.openScreenRecordingSettings()
                     }
                 }
-                Text("截图和取色需要读取屏幕内容。授权后若仍无法使用，请重新打开 ASimpleShot。")
+                Text(String(localized: "截图和取色需要读取屏幕内容。授权后若仍无法使用，请重新打开 ASimpleShot。"))
                     .foregroundStyle(.secondary)
             }
         }
@@ -74,7 +74,7 @@ private struct HotkeyRecorderButton: View {
             }
 
             Button { isRecording = true } label: {
-                Text(isRecording ? "按下快捷键组合..." : displayString)
+                Text(isRecording ? String(localized: "按下快捷键组合...") : displayString)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .frame(minWidth: 120)
                     .padding(.horizontal, 12)

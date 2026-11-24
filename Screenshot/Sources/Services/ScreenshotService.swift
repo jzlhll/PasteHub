@@ -45,10 +45,10 @@ final class ScreenshotService {
         defer { isShowingPermission = false }
         guard Self.hasScreenRecordingPermission || CGRequestScreenCaptureAccess() else {
             let alert = NSAlert()
-            alert.messageText = "需要截图权限"
-            alert.informativeText = "截图和取色需要读取屏幕内容。请在系统设置的「隐私与安全 → 录屏与系统录音」中允许 ASimpleShot 访问屏幕。授权后若仍无法截图，请重新打开 ASimpleShot。"
-            alert.addButton(withTitle: "打开系统设置")
-            alert.addButton(withTitle: "取消")
+            alert.messageText = String(localized: "需要截图权限")
+            alert.informativeText = String(localized: "截图和取色需要读取屏幕内容。请在系统设置的「隐私与安全 → 录屏与系统录音」中允许 ASimpleShot 访问屏幕。授权后若仍无法截图，请重新打开 ASimpleShot。")
+            alert.addButton(withTitle: String(localized: "打开系统设置"))
+            alert.addButton(withTitle: String(localized: "取消"))
             NSApp.activate(ignoringOtherApps: true)
             if alert.runModal() == .alertFirstButtonReturn { Self.openScreenRecordingSettings() }
             return
@@ -95,7 +95,7 @@ final class ScreenshotService {
             } catch {
                 guard !Task.isCancelled else { return }
                 self.cancel()
-                self.showError("无法开始截图", detail: error.localizedDescription)
+                self.showError(String(localized: "无法开始截图"), detail: error.localizedDescription)
             }
         }
     }
@@ -132,10 +132,10 @@ final class ScreenshotService {
                 guard let self, let view else { return }
                 NSPasteboard.general.clearContents()
                 guard NSPasteboard.general.setString(text, forType: .string) else {
-                    self.showToast("复制失败，请重试", on: view.window?.screen)
+                    self.showToast(String(localized: "复制失败，请重试"), on: view.window?.screen)
                     return
                 }
-                self.showToast("文字已复制到剪贴板", on: view.window?.screen)
+                self.showToast(String(localized: "文字已复制到剪贴板"), on: view.window?.screen)
             }
             view.editor.onCopy = { [weak self, weak view] in
                 guard let view else { return }
@@ -192,12 +192,12 @@ final class ScreenshotService {
             } else if let color = view.colorValue {
                 NSPasteboard.general.clearContents()
                 guard NSPasteboard.general.setString(color, forType: .string) else {
-                    showError("复制失败", detail: "无法写入系统剪贴板，请重试。")
+                    showError(String(localized: "复制失败"), detail: String(localized: "无法写入系统剪贴板，请重试。"))
                     return nil
                 }
                 let screen = view.window?.screen
                 cancel()
-                showToast("已复制色值 \(color)", on: screen)
+                showToast(String(localized: "已复制色值 \(color)"), on: screen)
             }
             return nil
         }
@@ -234,7 +234,7 @@ final class ScreenshotService {
         let options = view.editor.exportOptions
         guard let image = view.exportImage(),
               let data = options.encodedData(from: image, useMozJPEG: settings.screenshotMozJPEGEnabled) else {
-            showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
+            showError(String(localized: "截图导出失败"), detail: String(localized: "无法生成截图，请重新选择区域。"))
             return
         }
         let item = NSPasteboardItem()
@@ -246,12 +246,12 @@ final class ScreenshotService {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         guard pasteboard.writeObjects([item]) else {
-            showError("复制失败", detail: "无法写入系统剪贴板，请重试。")
+            showError(String(localized: "复制失败"), detail: String(localized: "无法写入系统剪贴板，请重试。"))
             return
         }
         let screen = view.window?.screen
         cancel()
-        showToast("截图已复制到剪贴板", on: screen)
+        showToast(String(localized: "截图已复制到剪贴板"), on: screen)
     }
 
     private func recognizeText(from view: ScreenshotOverlayView, in region: CGRect) {
@@ -284,7 +284,7 @@ final class ScreenshotService {
                 if case TextRecognitionError.timedOut = error {
                     view.editor.textRecognitionState = .timedOut
                 } else {
-                    let message = (error as? TextRecognitionError)?.errorDescription ?? "提取失败，请重试"
+                    let message = (error as? TextRecognitionError)?.errorDescription ?? String(localized: "提取失败，请重试")
                     view.editor.textRecognitionState = .failed(message)
                 }
                 if !(error is TextRecognitionError) {
@@ -339,14 +339,14 @@ final class ScreenshotService {
         let options = view.editor.exportOptions
         guard let image = view.exportImage(),
               let data = options.encodedData(from: image, useMozJPEG: settings.screenshotMozJPEGEnabled) else {
-            showError("截图导出失败", detail: "无法生成截图，请重新选择区域。")
+            showError(String(localized: "截图导出失败"), detail: String(localized: "无法生成截图，请重新选择区域。"))
             return
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [options.format.contentType]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "截图-\(Date().formatted(.dateTime.year().month().day().hour().minute().second()).replacingOccurrences(of: ":", with: "-" )).\(options.format.rawValue)"
-        panel.title = "保存截图"
+        panel.nameFieldStringValue = String(localized: "截图-\(Date().formatted(.dateTime.year().month().day().hour().minute().second()).replacingOccurrences(of: ":", with: "-" )).\(options.format.rawValue)")
+        panel.title = String(localized: "保存截图")
         savePanel = panel
         // 原生保存面板需要位于截图蒙层上方，取消保存后恢复编辑。
         for window in windows { window.level = .normal }
@@ -359,10 +359,10 @@ final class ScreenshotService {
                     try data.write(to: url, options: .atomic)
                     let screen = view?.window?.screen
                     self.cancel()
-                    self.showToast("截图已保存", on: screen)
+                    self.showToast(String(localized: "截图已保存"), on: screen)
                     return
                 } catch {
-                    self.showError("保存失败", detail: error.localizedDescription)
+                    self.showError(String(localized: "保存失败"), detail: error.localizedDescription)
                 }
             }
             for window in self.windows { window.level = .screenSaver; window.orderFrontRegardless() }
@@ -374,7 +374,7 @@ final class ScreenshotService {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = detail
-        alert.addButton(withTitle: "好")
+        alert.addButton(withTitle: String(localized: "好"))
         alert.window.level = .screenSaver
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
@@ -426,16 +426,16 @@ private enum TextRecognitionError: LocalizedError {
 
     nonisolated var errorDescription: String? {
         switch self {
-        case .invalidImage: return "无法生成截图，请重新选择区域"
-        case .noText: return "未识别到文字，请重试"
-        case .timedOut: return "提取超时，请重试"
+        case .invalidImage: return String(localized: "无法生成截图，请重新选择区域")
+        case .noText: return String(localized: "未识别到文字，请重试")
+        case .timedOut: return String(localized: "提取超时，请重试")
         }
     }
 }
 
 private enum ScreenshotError: LocalizedError {
     case noDisplay
-    nonisolated var errorDescription: String? { "没有可用的显示器，请检查显示器连接与截图权限。" }
+    nonisolated var errorDescription: String? { String(localized: "没有可用的显示器，请检查显示器连接与截图权限。") }
 }
 
 private final class ScreenshotWindow: NSWindow {

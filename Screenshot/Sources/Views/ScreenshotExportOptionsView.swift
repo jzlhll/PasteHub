@@ -77,7 +77,7 @@ struct ScreenshotExportOptionsView: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                rowLabel("预设")
+                rowLabel(String(localized: "预设"))
                 HStack(spacing: 4) {
                     ForEach(ScreenshotQualityPreset.allCases) { preset in
                         Button {
@@ -96,7 +96,7 @@ struct ScreenshotExportOptionsView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(preset.title)质量")
+                        .accessibilityLabel(String(localized: "\(preset.title)质量"))
                         .accessibilityAddTraits(state.qualityPreset == preset ? .isSelected : [])
                     }
                 }
@@ -104,7 +104,7 @@ struct ScreenshotExportOptionsView: View {
                 .background(Color.black.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
             }
             HStack(spacing: 10) {
-                rowLabel("格式")
+                rowLabel(String(localized: "格式"))
                 HStack(spacing: 4) {
                     ForEach(ScreenshotImageFormat.allCases) { format in
                         formatOption(format)
@@ -112,22 +112,22 @@ struct ScreenshotExportOptionsView: View {
                 }
             }
             HStack(spacing: 10) {
-                rowLabel("缩放")
+                rowLabel(String(localized: "缩放"))
                 Slider(value: Binding(get: { Double(state.exportOptions.scalePercent) },
                                       set: { state.customScalePercent = Int($0.rounded()) }), in: 20...100)
                     .controlSize(.small)
                     .disabled(!isCustom)
-                    .accessibilityLabel("尺寸缩放百分比")
+                    .accessibilityLabel(String(localized: "尺寸缩放百分比"))
                 percentage(state.exportOptions.scalePercent)
             }
             .opacity(isCustom ? 1 : 0.6)
             HStack(spacing: 10) {
-                rowLabel("质量")
+                rowLabel(String(localized: "质量"))
                 Slider(value: Binding(get: { Double(min(95, max(65, state.exportOptions.qualityPercent))) },
                                       set: { state.customJPEGQualityPercent = Int($0.rounded()) }), in: 65...95)
                     .controlSize(.small)
                     .disabled(!canAdjustQuality)
-                    .accessibilityLabel("JPG质量百分比")
+                    .accessibilityLabel(String(localized: "JPG质量百分比"))
                 percentage(state.exportOptions.qualityPercent)
             }
             .opacity(canAdjustQuality ? 1 : 0.6)
@@ -156,7 +156,7 @@ struct ScreenshotExportOptionsView: View {
                 label
             }
         }
-        .accessibilityLabel("\(format.title)格式")
+        .accessibilityLabel(String(localized: "\(format.title)格式"))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
@@ -164,7 +164,7 @@ struct ScreenshotExportOptionsView: View {
         Text(title)
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.secondary)
-            .frame(width: 36, alignment: .leading)
+            .frame(width: 48, alignment: .leading)
     }
 
     private func percentage(_ value: Int) -> some View {

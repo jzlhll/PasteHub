@@ -29,6 +29,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private var textRecognitionResult: ScreenshotTextRecognitionView?
     private let minimumSelectionPixels: CGFloat = 10
     private var toolbar: NSHostingView<ScreenshotToolbar>!
+    private var selectionActions: NSHostingView<ScreenshotSelectionActions>!
     private var tracking: NSTrackingArea?
     private var pointer = CGPoint.zero
     private var isRGB = false
@@ -48,8 +49,10 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         self.bitmap = NSBitmapImageRep(cgImage: image)
         super.init(frame: frame)
         toolbar = NSHostingView(rootView: ScreenshotToolbar(state: editor))
-        toolbar.isHidden = true
+        selectionActions = NSHostingView(rootView: ScreenshotSelectionActions(state: editor, isVertical: false))
+        setToolbarsHidden(true)
         addSubview(toolbar)
+        addSubview(selectionActions)
         editor.onChange = { [weak self] in
             self?.onEdit?()
             self?.clickAnnotationUndoIndex = nil
@@ -103,7 +106,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     private func updatePointerCursor() {
         if let textRecognitionResult, textRecognitionResult.frame.contains(pointer) {
             return
-        } else if !toolbar.isHidden, toolbar.frame.contains(pointer) {
+        } else if toolbarsContain(pointer) {
             NSCursor.arrow.set()
         } else if editor.textRecognitionState == .selecting {
             NSCursor.crosshair.set()
@@ -143,7 +146,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         // 禁用按钮及工具栏空白处的事件也可能向上传递，不能据此开始框选。
-        guard bounds.contains(point), toolbar.isHidden || !toolbar.frame.contains(point) else { return }
+        guard bounds.contains(point), !toolbarsContain(point) else { return }
         if let textRecognitionResult, textRecognitionResult.frame.contains(point) { return }
         if editor.textRecognitionState == .selecting {
             guard let selection, selection.contains(point) else { return }
@@ -195,7 +198,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
             pendingSelection = nil
             dragMode = .select
         }
-        if dragMode != .select { toolbar.isHidden = true }
+        if dragMode != .select { setToolbarsHidden(true) }
         needsDisplay = true
     }
 
@@ -212,7 +215,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         case .select:
             let candidate = rect(from: dragStart, to: pointer)
             pendingSelection = isValidSelection(candidate) ? candidate : nil
-            toolbar.isHidden = pendingSelection != nil || selection == nil
+            setToolbarsHidden(pendingSelection != nil || selection == nil)
         case .draw:
             guard let selection else { return }
             let point = CGPoint(x: min(selection.maxX, max(selection.minX, pointer.x)),
@@ -296,7 +299,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         editor.tool = nil
         editor.isShowingExportOptions = false
         editor.canUndo = false
-        toolbar.isHidden = true
+        setToolbarsHidden(true)
         needsDisplay = true
     }
 
@@ -345,8 +348,12 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
 
     func showRecognizedText(_ text: String) {
         guard let selection else { return }
+        var obstacles = visibleToolbarFrames
+        if let label = selectionDimensionsLabel(around: selection, avoiding: obstacles) {
+            obstacles.append(label.frame)
+        }
         let frame = ScreenshotTextRecognitionView.preferredFrame(around: selection, within: bounds,
-                                                                avoiding: toolbar.frame)
+                                                                avoiding: obstacles)
         let backdrop = ScreenshotRaster.export(image: image, mosaic: mosaic, canvasSize: bounds.size,
                                               selection: frame, annotations: annotations)
         let result = ScreenshotTextRecognitionView(frame: frame, text: text, backdrop: backdrop)
@@ -355,7 +362,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         textRecognitionResult?.removeFromSuperview()
         textRecognitionResult = result
         editor.textRecognitionState = .result
-        addSubview(result, positioned: .above, relativeTo: toolbar)
+        addSubview(result, positioned: .above, relativeTo: selectionActions)
         window?.makeFirstResponder(result.textView)
         needsDisplay = true
     }
@@ -446,7 +453,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         input.insertionPointColor = annotation.color
         input.typingAttributes = annotation.textAttributes
         input.delegate = self
-        input.setAccessibilityLabel("截图文字，Enter 完成，Shift + Enter 换行，Esc 取消编辑")
+        input.setAccessibilityLabel(String(localized: "截图文字，Enter 完成，Shift + Enter 换行，Esc 取消编辑"))
         input.wantsLayer = true
         input.layer?.borderWidth = 1
         input.layer?.borderColor = NSColor.systemBlue.withAlphaComponent(0.7).cgColor
@@ -571,8 +578,23 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         handles.firstIndex { abs($0.x - point.x) <= 6 && abs($0.y - point.y) <= 6 }
     }
 
+    private func setToolbarsHidden(_ hidden: Bool) {
+        toolbar.isHidden = hidden
+        selectionActions.isHidden = hidden || selectionActions.frame.isEmpty
+    }
+
+    private var visibleToolbarFrames: [CGRect] {
+        [toolbar.isHidden ? nil : toolbar.frame, selectionActions.isHidden ? nil : selectionActions.frame]
+            .compactMap { $0 }
+    }
+
+    private func toolbarsContain(_ point: CGPoint) -> Bool {
+        (!toolbar.isHidden && toolbar.frame.contains(point))
+            || (!selectionActions.isHidden && selectionActions.frame.contains(point))
+    }
+
     private func updateToolbar() {
-        guard let selection, dragMode == nil else { toolbar.isHidden = true; return }
+        guard let selection, dragMode == nil else { setToolbarsHidden(true); return }
         // 预留二级面板高度，底部空间不足时整体放到选区上方或屏幕内。
         let size = ScreenshotToolbar.layoutSize(hasOptions: editor.tool != nil,
                                                 showingExportOptions: editor.isShowingExportOptions)
@@ -582,7 +604,17 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         y = min(max(4, y), max(4, bounds.height - size.height - 4))
         // 与工具栏内部的整数尺寸保持一致，避免整体落在小数坐标上。
         toolbar.frame = CGRect(origin: CGPoint(x: x.rounded(), y: y.rounded()), size: size)
-        toolbar.isHidden = false
+        let actionSize = ScreenshotSelectionActions.layoutSize(isVertical: false)
+        let placement = ScreenshotOverlayLayout.accessoryFrame(
+            around: selection, within: bounds, size: actionSize,
+            sideSize: ScreenshotSelectionActions.layoutSize(isVertical: true),
+            topX: selection.midX - actionSize.width / 2, avoiding: [toolbar.frame]
+        )
+        if let placement, selectionActions.rootView.isVertical != placement.isVertical {
+            selectionActions.rootView = ScreenshotSelectionActions(state: editor, isVertical: placement.isVertical)
+        }
+        selectionActions.frame = placement?.frame ?? .zero
+        setToolbarsHidden(false)
         window?.invalidateCursorRects(for: self)
     }
 
@@ -596,6 +628,7 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         if let displayedSelection { context.addRect(displayedSelection) }
         context.fillPath(using: .evenOdd)
         context.restoreGState()
+        var obstacles = visibleToolbarFrames
         if let selection = displayedSelection {
             if pendingSelection == nil {
                 context.saveGState()
@@ -617,11 +650,12 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
                     context.stroke(handle)
                 }
             }
-            let width = Int((selection.width * CGFloat(image.width) / bounds.width).rounded())
-            let height = Int((selection.height * CGFloat(image.height) / bounds.height).rounded())
-            drawLabel("\(width) × \(height)", at: CGPoint(x: selection.minX + 5, y: max(5, selection.minY - 26)))
+            if let label = selectionDimensionsLabel(around: selection, avoiding: obstacles) {
+                drawLabel(label.text, in: label.frame)
+                obstacles.append(label.frame)
+            }
             if pendingSelection == nil, editor.tool?.isBrush == true, selection.contains(pointer),
-               toolbar.isHidden || !toolbar.frame.contains(pointer),
+               !toolbarsContain(pointer),
                dragMode == .draw || (dragMode == nil && handleIndex(at: pointer) == nil) {
                 let diameter = editor.activeLineWidth
                 let brush = CGRect(x: pointer.x - diameter / 2, y: pointer.y - diameter / 2,
@@ -650,44 +684,31 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
             context.restoreGState()
         }
         if editor.textRecognitionState == .selecting, let selection {
-            drawTextRecognitionHint(around: selection)
+            drawTextRecognitionHint(around: selection, avoiding: obstacles)
         }
     }
 
-    private func drawTextRecognitionHint(around selection: CGRect) {
-        let text = "框选需要识别的文字 · Esc 返回"
-        let font = Self.overlayFont(ofSize: 12)
-        let size = CGSize(width: ceil((text as NSString).size(withAttributes: [.font: font]).width) + 8, height: 22)
-        let visible = bounds.insetBy(dx: 8, dy: 8)
-        let gap: CGFloat = 8
+    private func selectionDimensionsLabel(around selection: CGRect, avoiding obstacles: [CGRect])
+        -> (text: String, frame: CGRect)? {
         let width = Int((selection.width * CGFloat(image.width) / bounds.width).rounded())
         let height = Int((selection.height * CGFloat(image.height) / bounds.height).rounded())
-        let dimensions = "\(width) × \(height)" as NSString
-        let dimensionsFrame = CGRect(x: selection.minX + 1, y: max(5, selection.minY - 26) - 3,
-                                     width: dimensions.size(withAttributes: [.font: font]).width + 8, height: 22)
-        let toolbarFrame = toolbar.isHidden ? CGRect.null : toolbar.frame.insetBy(dx: -gap, dy: -gap)
-        let xs = [selection.midX - size.width / 2, selection.maxX + gap, selection.minX - size.width - gap,
-                  toolbarFrame.minX - size.width - gap, toolbarFrame.maxX + gap, visible.minX, visible.maxX - size.width]
-        let ys = [selection.minY - size.height - gap, selection.maxY + gap,
-                  toolbarFrame.minY - size.height - gap, toolbarFrame.maxY + gap,
-                  dimensionsFrame.minY - size.height - gap, selection.midY - size.height / 2,
-                  visible.minY, visible.maxY - size.height]
-        // 位置只依赖原截图选区和工具栏，二次框选时不跟随鼠标或识别区域移动。
-        for y in ys where y.isFinite {
-            for x in xs where x.isFinite {
-                let frame = CGRect(x: min(max(visible.minX, x), visible.maxX - size.width),
-                                   y: min(max(visible.minY, y), visible.maxY - size.height),
-                                   width: size.width, height: size.height)
-                if visible.contains(frame), !frame.intersects(selection),
-                   !frame.intersects(toolbarFrame), !frame.intersects(dimensionsFrame) {
-                    drawLabel(text, at: CGPoint(x: frame.minX + 4, y: frame.minY + 3))
-                    return
-                }
-            }
+        let text = "\(width) × \(height)"
+        guard let placement = ScreenshotOverlayLayout.accessoryFrame(
+            around: selection, within: bounds, size: labelSize(for: text),
+            topX: selection.minX, avoiding: obstacles
+        ) else { return nil }
+        return (text, placement.frame)
+    }
+
+    private func drawTextRecognitionHint(around selection: CGRect, avoiding obstacles: [CGRect]) {
+        let text = String(localized: "框选需要识别的文字 · Esc 返回")
+        let size = labelSize(for: text)
+        if let placement = ScreenshotOverlayLayout.accessoryFrame(
+            around: selection, within: bounds, size: size,
+            topX: selection.midX - size.width / 2, avoiding: obstacles
+        ) {
+            drawLabel(text, in: placement.frame)
         }
-        let x = min(max(visible.minX, selection.minX + 8), visible.maxX - size.width)
-        let y = min(max(visible.minY, selection.minY + 8), visible.maxY - size.height)
-        drawLabel(text, at: CGPoint(x: x + 4, y: y + 3))
     }
 
     private func drawMagnifier(in context: CGContext) {
@@ -736,17 +757,21 @@ final class ScreenshotOverlayView: NSView, NSTextViewDelegate {
         context.stroke(CGRect(x: target.midX - magnification / 2, y: target.midY - magnification / 2,
                               width: magnification, height: magnification))
         drawText("X: \(Int(pixel.x))  Y: \(Int(pixel.y))", at: CGPoint(x: x + 12, y: target.maxY + 9), size: 12)
-        drawText(colorValue ?? "无法取色", at: CGPoint(x: x + 12, y: target.maxY + 30), size: 14)
-        drawText("Shift 切换 · ⌘C 复制", at: CGPoint(x: x + 12, y: target.maxY + 57), size: 10)
+        drawText(colorValue ?? String(localized: "无法取色"), at: CGPoint(x: x + 12, y: target.maxY + 30), size: 14)
+        drawText(String(localized: "Shift 切换 · ⌘C 复制"), at: CGPoint(x: x + 12, y: target.maxY + 57), size: 10)
     }
 
-    private func drawLabel(_ text: String, at point: CGPoint) {
+    private func labelSize(for text: String) -> CGSize {
+        let width = (text as NSString).size(withAttributes: [.font: Self.overlayFont(ofSize: 12)]).width
+        return CGSize(width: ceil(width) + 8, height: 22)
+    }
+
+    private func drawLabel(_ text: String, in frame: CGRect) {
         let font = Self.overlayFont(ofSize: 12)
-        let size = (text as NSString).size(withAttributes: [.font: font])
         NSColor.black.withAlphaComponent(0.8).setFill()
-        NSBezierPath(roundedRect: CGRect(x: point.x - 4, y: point.y - 3, width: size.width + 8, height: 22),
-                     xRadius: 4, yRadius: 4).fill()
-        (text as NSString).draw(at: point, withAttributes: [.font: font, .foregroundColor: NSColor.white])
+        NSBezierPath(roundedRect: frame, xRadius: 4, yRadius: 4).fill()
+        (text as NSString).draw(at: CGPoint(x: frame.minX + 4, y: frame.minY + 3),
+                                withAttributes: [.font: font, .foregroundColor: NSColor.white])
     }
 
     private func drawText(_ text: String, at point: CGPoint, size: CGFloat) {

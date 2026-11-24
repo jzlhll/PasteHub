@@ -28,7 +28,7 @@ nonisolated struct SnippetItem: Identifiable, Codable, Hashable {
         }
         let fallback = content.trimmingCharacters(in: .whitespacesAndNewlines)
         if fallback.isEmpty {
-            return "未命名片段"
+            return String(localized: "未命名片段")
         }
         return String(fallback.prefix(24))
     }

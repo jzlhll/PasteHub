@@ -23,10 +23,10 @@ private enum ClipboardFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: return "全部"
-        case .text: return "文本"
-        case .image: return "图片"
-        case .file: return "文件"
+        case .all: return String(localized: "全部")
+        case .text: return String(localized: "文本")
+        case .image: return String(localized: "图片")
+        case .file: return String(localized: "文件")
         }
     }
 
@@ -456,7 +456,7 @@ struct ClipboardListView: View {
             editingSnippet = nil
         }) {
             SnippetEditorSheet(
-                title: editingSnippet == nil ? "新建常用片段" : "编辑常用片段",
+                title: editingSnippet == nil ? String(localized: "新建常用片段") : String(localized: "编辑常用片段"),
                 initialTitle: editingSnippet?.title ?? "",
                 initialContent: editingSnippet?.content ?? "",
                 initialTags: editingSnippet?.tags ?? [],
@@ -483,13 +483,13 @@ struct ClipboardListView: View {
                 }
             )
         }
-        .alert("确认清空历史记录？", isPresented: $isClearConfirmationPresented) {
-            Button("取消", role: .cancel) {}
-            Button("清空", role: .destructive) {
+        .alert(String(localized: "确认清空历史记录？"), isPresented: $isClearConfirmationPresented) {
+            Button(String(localized: "取消"), role: .cancel) {}
+            Button(String(localized: "清空"), role: .destructive) {
                 store.clearAll()
             }
         } message: {
-            Text("清空后不可恢复。")
+            Text(String(localized: "清空后不可恢复。"))
         }
         .onChange(of: availableHistoryTags) { _, tags in
             if let selectedHistoryTag, !tags.contains(selectedHistoryTag) {
@@ -655,7 +655,7 @@ struct ClipboardListView: View {
     private var compactModeTabs: some View {
         HStack(spacing: compactDensity == .high ? 4 : 6) {
             compactModeTab(
-                title: "历史",
+                title: String(localized: "历史"),
                 systemImage: "clock.arrow.circlepath",
                 count: store.items.count,
                 isActive: !isSnippetMode
@@ -666,7 +666,7 @@ struct ClipboardListView: View {
             }
 
             compactModeTab(
-                title: "常用片段",
+                title: String(localized: "常用片段"),
                 systemImage: "bookmark.fill",
                 count: store.snippets.count,
                 isActive: isSnippetMode
@@ -723,10 +723,10 @@ struct ClipboardListView: View {
             if compactDisplayedHistoryItems.isEmpty {
                 EmptyStateCard(
                     icon: "list.bullet.rectangle",
-                    title: "暂无记录",
+                    title: String(localized: "暂无记录"),
                     subtitle: queryText.isEmpty
-                        ? "复制文本、图片或文件后会按时间顺序出现在这里"
-                        : "没有匹配当前搜索条件的结果"
+                        ? String(localized: "复制文本、图片或文件后会按时间顺序出现在这里")
+                        : String(localized: "没有匹配当前搜索条件的结果")
                 )
             } else {
                 if usesCompactLinearList {
@@ -743,10 +743,10 @@ struct ClipboardListView: View {
             if compactDisplayedSnippets.isEmpty {
                 EmptyStateCard(
                     icon: "bookmark",
-                    title: "暂无常用片段",
+                    title: String(localized: "暂无常用片段"),
                     subtitle: queryText.isEmpty
-                        ? "可保存地址、账号、代码片段等，单击即可快速使用"
-                        : "没有匹配当前搜索条件的片段"
+                        ? String(localized: "可保存地址、账号、代码片段等，单击即可快速使用")
+                        : String(localized: "没有匹配当前搜索条件的片段")
                 )
             } else {
                 if usesCompactLinearList {
@@ -768,7 +768,7 @@ struct ClipboardListView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
 
-                    TextField("搜索", text: $searchText)
+                    TextField(String(localized: "搜索"), text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: compactDensity == .high ? 11 : 12, weight: .medium, design: .rounded))
                         .focused($isSearchFocused)
@@ -831,7 +831,7 @@ struct ClipboardListView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("搜索", text: $searchText)
+            TextField(String(localized: "搜索"), text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .focused($isSearchFocused)
@@ -904,7 +904,7 @@ struct ClipboardListView: View {
                                 selectedHistoryTag = nil
                             }
                         } label: {
-                            Text("全部")
+                            Text(String(localized: "全部"))
                                 .font(.system(size: compactControlFontSize, weight: .semibold, design: .rounded))
                                 .foregroundStyle(compactSelectedTag == nil ? .white : .primary)
                                 .padding(.horizontal, compactDensity == .high ? 8 : 9)
@@ -1176,8 +1176,8 @@ struct ClipboardListView: View {
             if filteredSnippets.isEmpty {
                 EmptyStateCard(
                     icon: "bookmark",
-                    title: "暂无常用片段",
-                    subtitle: "可保存地址、账号、代码片段等，单击即可快速使用"
+                    title: String(localized: "暂无常用片段"),
+                    subtitle: String(localized: "可保存地址、账号、代码片段等，单击即可快速使用")
                 )
                 .frame(maxHeight: useHorizontalWaterfall ? horizontalSnippetContentHeight : .infinity)
             } else if useHorizontalWaterfall {
@@ -1254,7 +1254,7 @@ struct ClipboardListView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
 
-                    TextField("搜索内容、标签或来源应用", text: $searchText)
+                    TextField(String(localized: "搜索内容、标签或来源应用"), text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .focused($isSearchFocused)
@@ -1651,7 +1651,7 @@ struct ClipboardListView: View {
             HStack(spacing: 6) {
                 Image(systemName: "bookmark")
                     .font(.system(size: 12, weight: .semibold))
-                Text("常用片段")
+                Text(String(localized: "常用片段"))
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
             }
             .foregroundStyle(isSnippetMode ? .white : .primary)
@@ -1676,7 +1676,7 @@ struct ClipboardListView: View {
                         selectedHistoryTag = nil
                     }
                 } label: {
-                    Text("全部标签")
+                    Text(String(localized: "全部标签"))
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(activeSelectedTag == nil ? .white : .primary)
                         .padding(.horizontal, 10)
@@ -1714,7 +1714,7 @@ struct ClipboardListView: View {
     }
 
     private var statusBadge: some View {
-        Text(isSnippetMode ? "\(store.snippets.count) 条片段" : "\(store.items.count) 条")
+        Text(isSnippetMode ? String(localized: "\(store.snippets.count) 条片段") : String(localized: "\(store.items.count) 条"))
             .font(.system(size: isSnippetMode ? 15 : 16, weight: .semibold, design: .rounded))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
@@ -1730,14 +1730,14 @@ struct ClipboardListView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .help("新增常用片段")
+        .help(String(localized: "新增常用片段"))
     }
 
     private var clearButton: some View {
         Button(role: .destructive) {
             isClearConfirmationPresented = true
         } label: {
-            Text("清空")
+            Text(String(localized: "清空"))
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
@@ -1751,7 +1751,7 @@ struct ClipboardListView: View {
         Button {
             isClearConfirmationPresented = true
         } label: {
-            Text("清空")
+            Text(String(localized: "清空"))
                 .font(.system(size: compactControlFontSize, weight: .semibold, design: .rounded))
                 .hidden()
                 .overlay {
@@ -1763,8 +1763,8 @@ struct ClipboardListView: View {
                 .background(Color.secondary.opacity(0.12), in: Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("清空历史")
-        .help("清空历史")
+        .accessibilityLabel(String(localized: "清空历史"))
+        .help(String(localized: "清空历史"))
         .disabled(store.items.isEmpty)
     }
 
@@ -1776,7 +1776,7 @@ struct ClipboardListView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .help("新增常用片段")
+        .help(String(localized: "新增常用片段"))
     }
 
     private func compactModeTab(
@@ -2186,7 +2186,7 @@ struct ClipboardListView: View {
         Button {
             onOpenSettings?()
         } label: {
-            Text("设置")
+            Text(String(localized: "设置"))
                 .font(.system(size: isCompactMode ? compactControlFontSize : 12, weight: .semibold, design: .rounded))
                 .hidden()
                 .overlay {
@@ -2198,8 +2198,8 @@ struct ClipboardListView: View {
                 .background(Color.secondary.opacity(0.12), in: Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("打开设置")
-        .help("打开设置")
+        .accessibilityLabel(String(localized: "打开设置"))
+        .help(String(localized: "打开设置"))
     }
 }
 
@@ -2280,7 +2280,7 @@ private struct CompactLinearHistoryRow: View {
             logo
 
             VStack(alignment: .leading, spacing: density == .high ? 0 : 2) {
-                Text(titleText.isEmpty ? "空内容" : titleText)
+                Text(titleText.isEmpty ? String(localized: "空内容") : titleText)
                     .font(.system(size: titleFontSize, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -2318,15 +2318,15 @@ private struct CompactLinearHistoryRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onPrimaryAction)
         .contextMenu {
-            Button("完成键入", action: onPrimaryAction)
-            Button("重新复制", action: onCopy)
-            Button("编辑标签", action: onManageTags)
+            Button(String(localized: "完成键入"), action: onPrimaryAction)
+            Button(String(localized: "重新复制"), action: onCopy)
+            Button(String(localized: "编辑标签"), action: onManageTags)
             if item.type == .text {
-                Button("分词选择", action: onTokenSelect)
-                Button("添加到常用片段", action: onSaveAsSnippet)
+                Button(String(localized: "分词选择"), action: onTokenSelect)
+                Button(String(localized: "添加到常用片段"), action: onSaveAsSnippet)
             }
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(String(localized: "删除"), role: .destructive, action: onDelete)
         }
         .task(id: isPanelPresented ? previewImageURL?.absoluteString : nil) {
             guard isPanelPresented, let previewImageURL else {
@@ -2378,7 +2378,7 @@ private struct CompactLinearSnippetRow: View {
         let text = snippet.content
             .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.isEmpty ? "空内容" : text
+        return text.isEmpty ? String(localized: "空内容") : text
     }
 
     var body: some View {
@@ -2425,11 +2425,11 @@ private struct CompactLinearSnippetRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onPrimaryAction)
         .contextMenu {
-            Button("完成键入", action: onPrimaryAction)
-            Button("重新复制", action: onCopy)
-            Button("编辑片段", action: onEdit)
+            Button(String(localized: "完成键入"), action: onPrimaryAction)
+            Button(String(localized: "重新复制"), action: onCopy)
+            Button(String(localized: "编辑片段"), action: onEdit)
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(String(localized: "删除"), role: .destructive, action: onDelete)
         }
     }
 }
@@ -2551,15 +2551,15 @@ private struct CompactClipboardCard: View {
             }
         }
         .contextMenu {
-            Button("完成键入", action: onPrimaryAction)
-            Button("重新复制", action: onCopy)
-            Button("编辑标签", action: onManageTags)
+            Button(String(localized: "完成键入"), action: onPrimaryAction)
+            Button(String(localized: "重新复制"), action: onCopy)
+            Button(String(localized: "编辑标签"), action: onManageTags)
             if item.type == .text {
-                Button("分词选择", action: onTokenSelect)
-                Button("添加到常用片段", action: onSaveAsSnippet)
+                Button(String(localized: "分词选择"), action: onTokenSelect)
+                Button(String(localized: "添加到常用片段"), action: onSaveAsSnippet)
             }
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(String(localized: "删除"), role: .destructive, action: onDelete)
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) {
@@ -2673,7 +2673,7 @@ private struct CompactClipboardCard: View {
                 if isHovering && shouldShowHoverHint {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        Text("单击回填，右键更多")
+                        Text(String(localized: "单击回填，右键更多"))
                             .lineLimit(1)
                     }
                     .font(.system(size: helperFontSize, weight: .medium, design: .rounded))
@@ -3034,8 +3034,8 @@ private struct EmptyStateCard: View {
 
     init(
         icon: String = "tray",
-        title: String = "暂无匹配记录",
-        subtitle: String = "复制文本、图片或文件后会自动出现在这里"
+        title: String = String(localized: "暂无匹配记录"),
+        subtitle: String = String(localized: "复制文本、图片或文件后会自动出现在这里")
     ) {
         self.icon = icon
         self.title = title
@@ -3424,15 +3424,15 @@ private struct ClipboardCard: View {
         .scaleEffect(isPressing ? 0.988 : 1)
         .onTapGesture(perform: onPrimaryAction)
         .contextMenu {
-            Button("完成键入", action: onPrimaryAction)
-            Button("重新复制", action: onCopy)
-            Button("编辑标签", action: onManageTags)
+            Button(String(localized: "完成键入"), action: onPrimaryAction)
+            Button(String(localized: "重新复制"), action: onCopy)
+            Button(String(localized: "编辑标签"), action: onManageTags)
             if item.type == .text {
-                Button("分词选择", action: onTokenSelect)
-                Button("添加到常用片段", action: onSaveAsSnippet)
+                Button(String(localized: "分词选择"), action: onTokenSelect)
+                Button(String(localized: "添加到常用片段"), action: onSaveAsSnippet)
             }
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(String(localized: "删除"), role: .destructive, action: onDelete)
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -3568,7 +3568,7 @@ private struct SnippetCard: View {
                             in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                         )
                 } else {
-                    Label("片段", systemImage: "bookmark.fill")
+                    Label(String(localized: "片段"), systemImage: "bookmark.fill")
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundStyle(Color.accentColor)
                         .padding(.horizontal, 8)
@@ -3652,11 +3652,11 @@ private struct SnippetCard: View {
         .scaleEffect(isPressing ? 0.988 : 1)
         .onTapGesture(perform: onPrimaryAction)
         .contextMenu {
-            Button("完成键入", action: onPrimaryAction)
-            Button("重新复制", action: onCopy)
-            Button("编辑片段", action: onEdit)
+            Button(String(localized: "完成键入"), action: onPrimaryAction)
+            Button(String(localized: "重新复制"), action: onCopy)
+            Button(String(localized: "编辑片段"), action: onEdit)
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(String(localized: "删除"), role: .destructive, action: onDelete)
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -3732,20 +3732,20 @@ private struct TagEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("编辑标签")
+            Text(String(localized: "编辑标签"))
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
 
-            TextField("多个标签可用逗号分隔", text: $tagsInput)
+            TextField(String(localized: "多个标签可用逗号分隔"), text: $tagsInput)
                 .textFieldStyle(.roundedBorder)
 
-            Text("示例：账号, 公司, 常用")
+            Text(String(localized: "示例：账号, 公司, 常用"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
             HStack {
                 Spacer()
-                Button("取消") { dismiss() }
-                Button("保存") {
+                Button(String(localized: "取消")) { dismiss() }
+                Button(String(localized: "保存")) {
                     onSave(TagParser.parse(tagsInput))
                     dismiss()
                 }
@@ -3794,7 +3794,7 @@ private struct SnippetEditorSheet: View {
             Text(title)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
 
-            TextField("标题（可选）", text: $titleInput)
+            TextField(String(localized: "标题（可选）"), text: $titleInput)
                 .textFieldStyle(.roundedBorder)
 
             TextEditor(text: $contentInput)
@@ -3805,13 +3805,13 @@ private struct SnippetEditorSheet: View {
                         .stroke(Color.secondary.opacity(0.16), lineWidth: 1)
                 )
 
-            TextField("标签（可选，逗号分隔）", text: $tagsInput)
+            TextField(String(localized: "标签（可选，逗号分隔）"), text: $tagsInput)
                 .textFieldStyle(.roundedBorder)
 
             HStack {
                 Spacer()
-                Button("取消") { dismiss() }
-                Button("保存") {
+                Button(String(localized: "取消")) { dismiss() }
+                Button(String(localized: "保存")) {
                     onSave(titleInput, contentInput, TagParser.parse(tagsInput))
                 }
                 .buttonStyle(.borderedProminent)
@@ -3858,35 +3858,35 @@ private struct TokenSelectionSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("分词选择")
+            Text(String(localized: "分词选择"))
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
 
-            Text("点选方块选择字符，按原顺序拼接后完成键入")
+            Text(String(localized: "点选方块选择字符，按原顺序拼接后完成键入"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
-            Text("支持 Shift + 点击做连续选择；快捷按钮会直接替换当前选择")
+            Text(String(localized: "支持 Shift + 点击做连续选择；快捷按钮会直接替换当前选择"))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    Button("全选") {
+                    Button(String(localized: "全选")) {
                         selectedIndices = allIndices
                     }
-                    Button("反选") {
+                    Button(String(localized: "反选")) {
                         selectedIndices = allIndices.subtracting(selectedIndices)
                     }
-                    Button("仅数字") {
+                    Button(String(localized: "仅数字")) {
                         selectOnly(where: isDigit)
                     }
-                    Button("手机号段") {
+                    Button(String(localized: "手机号段")) {
                         selectPhoneNumberLikeDigits()
                     }
-                    Button("仅字母") {
+                    Button(String(localized: "仅字母")) {
                         selectOnly(where: isASCIIAlpha)
                     }
-                    Button("仅空白") {
+                    Button(String(localized: "仅空白")) {
                         selectOnly(where: isWhitespace)
                     }
                 }
@@ -3895,7 +3895,7 @@ private struct TokenSelectionSheet: View {
             }
 
             if characters.isEmpty {
-                Text("当前文本为空")
+                Text(String(localized: "当前文本为空"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: selectionAreaHeight)
@@ -3932,10 +3932,10 @@ private struct TokenSelectionSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("已选择 \(selectedIndices.count) 个字符")
+                Text(String(localized: "已选择 \(selectedIndices.count) 个字符"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                Text(selectedText.isEmpty ? "（尚未选择）" : selectedText)
+                Text(selectedText.isEmpty ? String(localized: "（尚未选择）") : selectedText)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(3)
@@ -3949,10 +3949,10 @@ private struct TokenSelectionSheet: View {
 
             HStack {
                 Spacer()
-                Button("取消") { dismiss() }
-                Button("清空选择") { selectedIndices.removeAll() }
+                Button(String(localized: "取消")) { dismiss() }
+                Button(String(localized: "清空选择")) { selectedIndices.removeAll() }
                     .disabled(selectedIndices.isEmpty)
-                Button("完成键入") {
+                Button(String(localized: "完成键入")) {
                     guard canSubmit else { return }
                     onSubmit(selectedText)
                     dismiss()

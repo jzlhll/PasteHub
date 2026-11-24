@@ -29,7 +29,7 @@ final class ScreenshotTextRecognitionView: NSView {
         layer?.borderWidth = 1
         layer?.borderColor = NSColor.white.withAlphaComponent(0.65).cgColor
 
-        let title = NSTextField(labelWithString: "识别结果")
+        let title = NSTextField(labelWithString: String(localized: "识别结果"))
         title.font = .systemFont(ofSize: 14, weight: .semibold)
         title.textColor = .labelColor
 
@@ -63,13 +63,13 @@ final class ScreenshotTextRecognitionView: NSView {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.string = text
-        textView.setAccessibilityLabel("识别结果，可编辑")
+        textView.setAccessibilityLabel(String(localized: "识别结果，可编辑"))
         scroll.documentView = textView
 
-        let copy = NSButton(title: "复制", target: self, action: #selector(copyText))
+        let copy = NSButton(title: String(localized: "复制"), target: self, action: #selector(copyText))
         copy.bezelStyle = .rounded
         copy.bezelColor = .controlAccentColor
-        let close = NSButton(title: "关闭", target: self, action: #selector(closeResult))
+        let close = NSButton(title: String(localized: "关闭"), target: self, action: #selector(closeResult))
         close.bezelStyle = .rounded
 
         for view in [title, scroll, copy, close] {
@@ -112,7 +112,7 @@ final class ScreenshotTextRecognitionView: NSView {
     @objc private func copyText() { onCopy?(textView.string) }
     @objc private func closeResult() { onClose?() }
 
-    static func preferredFrame(around selection: CGRect, within bounds: CGRect, avoiding toolbar: CGRect) -> CGRect {
+    static func preferredFrame(around selection: CGRect, within bounds: CGRect, avoiding obstacles: [CGRect]) -> CGRect {
         let visible = bounds.insetBy(dx: 12, dy: 12)
         let gap: CGFloat = 12
         let desired = CGSize(width: 360, height: 280)
@@ -128,9 +128,9 @@ final class ScreenshotTextRecognitionView: NSView {
                    width: visible.width, height: selection.minY - gap - visible.minY)
         ]
         var best: CGRect?
-        // 先检查截图外的所有可用区域；工具栏占用的位置也不能遮挡结果框。
-        for area in outside where area.width > 0 && area.height > 0 {
-            for space in spaces(in: area, avoiding: toolbar.insetBy(dx: -8, dy: -8)) {
+        // 优先使用选区外的可用区域，并避开现有控件。
+        for area in outside {
+            for space in ScreenshotOverlayLayout.availableAreas(in: area, avoiding: obstacles) {
                 guard space.width >= minimum.width, space.height >= minimum.height else { continue }
                 let size = CGSize(width: min(desired.width, space.width), height: min(desired.height, space.height))
                 let candidate = CGRect(x: min(max(selection.minX, space.minX), space.maxX - size.width),
@@ -148,22 +148,12 @@ final class ScreenshotTextRecognitionView: NSView {
 
         let intersection = selection.intersection(visible)
         let inside = intersection.insetBy(dx: min(8, intersection.width / 4), dy: min(8, intersection.height / 4))
-        let available = spaces(in: inside, avoiding: toolbar.insetBy(dx: -8, dy: -8))
-            .filter { $0.width >= minimum.width && $0.height >= minimum.height }
+        let spaces = ScreenshotOverlayLayout.availableAreas(in: inside, avoiding: obstacles)
+        let preferred = spaces.filter { $0.width >= minimum.width && $0.height >= minimum.height }
+        let available = (preferred.isEmpty ? spaces : preferred)
             .max { $0.width * $0.height < $1.width * $1.height } ?? inside
         let size = CGSize(width: min(desired.width, available.width), height: min(desired.height, available.height))
         return CGRect(x: available.maxX - size.width, y: available.minY, width: size.width, height: size.height).integral
-    }
-
-    private static func spaces(in area: CGRect, avoiding obstacle: CGRect) -> [CGRect] {
-        let overlap = area.intersection(obstacle)
-        guard !overlap.isNull else { return [area] }
-        return [
-            CGRect(x: area.minX, y: area.minY, width: overlap.minX - area.minX, height: area.height),
-            CGRect(x: overlap.maxX, y: area.minY, width: area.maxX - overlap.maxX, height: area.height),
-            CGRect(x: area.minX, y: area.minY, width: area.width, height: overlap.minY - area.minY),
-            CGRect(x: area.minX, y: overlap.maxY, width: area.width, height: area.maxY - overlap.maxY)
-        ]
     }
 }
 

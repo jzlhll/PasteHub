@@ -73,28 +73,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(
-            systemSymbolName: "doc.on.clipboard",
-            accessibilityDescription: "PasteHub"
-        )
+        let icon = NSImage(systemSymbolName: "clipboard.fill", accessibilityDescription: "PasteHub")?
+            .withSymbolConfiguration(.init(pointSize: 16, weight: .semibold, scale: .medium))
+        icon?.isTemplate = true
+        statusItem.button?.image = icon
 
         let menu = NSMenu()
 
-        let toggleItem = NSMenuItem(title: "显示 / 隐藏面板", action: #selector(togglePanel), keyEquivalent: "")
+        let toggleItem = NSMenuItem(title: String(localized: "显示 / 隐藏面板"), action: #selector(togglePanel), keyEquivalent: "")
         menu.addItem(toggleItem)
 
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "设置...", action: #selector(showSettings), keyEquivalent: "")
+        let settingsItem = NSMenuItem(title: String(localized: "设置..."), action: #selector(showSettings), keyEquivalent: "")
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
 
-        menu.addItem(NSMenuItem(title: "清空记录", action: #selector(clearHistory), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: String(localized: "清空记录"), action: #selector(clearHistory), keyEquivalent: ""))
 
         menu.addItem(.separator())
 
-        menu.addItem(NSMenuItem(title: "退出 PasteHub", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: String(localized: "退出 PasteHub"), action: #selector(quitApp), keyEquivalent: "q"))
 
         statusMenu = menu
         configureStatusItemInteraction()
@@ -224,7 +224,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: !centerBeforeShowing
         )
-        w.title = "PasteHub 设置"
+        w.title = String(localized: "PasteHub 设置")
         w.titleVisibility = .hidden
         w.titlebarAppearsTransparent = true
         w.toolbarStyle = .unified
