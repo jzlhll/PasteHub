@@ -346,7 +346,11 @@ struct ScreenshotToolbar: View {
 
 struct ScreenshotSelectionActions: View {
     let state: ScreenshotEditorState
+    let dimensions: String
     let isVertical: Bool
+
+    static let textColor = NSColor(srgbRed: 240.0 / 255, green: 240.0 / 255, blue: 240.0 / 255, alpha: 1)
+    private static let rowHeight: CGFloat = 32
 
     private enum Segment: CaseIterable, Identifiable {
         case textRecognition
@@ -362,24 +366,39 @@ struct ScreenshotSelectionActions: View {
         }
     }
 
-    private static let segmentSize: CGSize = {
+    private static let segmentWidth: CGFloat = {
         let font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let widths = Segment.allCases.map { segment in
             let width = (segment.title as NSString).size(withAttributes: [.font: font]).width
             return width + (segment == .textRecognition ? 18 : 0)
         }
-        return CGSize(width: max(94, ceil(widths.max() ?? 0) + 20), height: 32)
+        return max(94, ceil(widths.max() ?? 0) + 20)
     }()
 
-    static func layoutSize(isVertical: Bool) -> CGSize {
+    private static func dimensionsWidth(_ dimensions: String) -> CGFloat {
+        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+        return ceil((dimensions as NSString).size(withAttributes: [.font: font]).width) + 20
+    }
+
+    static func layoutSize(dimensions: String, isVertical: Bool) -> CGSize {
         let count = CGFloat(Segment.allCases.count)
-        return CGSize(width: segmentSize.width * (isVertical ? 1 : count),
-                      height: segmentSize.height * (isVertical ? count : 1))
+        let dimensionsWidth = Self.dimensionsWidth(dimensions)
+        if isVertical {
+            return CGSize(width: max(segmentWidth, dimensionsWidth), height: rowHeight * (count + 1))
+        }
+        return CGSize(width: dimensionsWidth + segmentWidth * count, height: rowHeight)
     }
 
     var body: some View {
         let layout = isVertical ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        let dimensionsWidth = Self.dimensionsWidth(dimensions)
+        let segmentWidth = isVertical ? max(Self.segmentWidth, dimensionsWidth) : Self.segmentWidth
+        let foreground = Color(nsColor: Self.textColor)
         layout {
+            Text(verbatim: dimensions)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(foreground)
+                .frame(width: isVertical ? segmentWidth : dimensionsWidth, height: Self.rowHeight)
             ForEach(Segment.allCases) { segment in
                 let isRecognition = segment == .textRecognition
                 let status = state.textRecognitionState
@@ -389,18 +408,23 @@ struct ScreenshotSelectionActions: View {
                     HStack(spacing: 4) {
                         if isRecognition {
                             if status == .recognizing {
-                                ProgressView().controlSize(.mini).accessibilityHidden(true)
+                                ProgressView()
+                                    .controlSize(.mini)
+                                    .tint(foreground)
+                                    .accessibilityHidden(true)
                             } else if let symbol = status.symbol {
-                                Image(systemName: symbol).accessibilityHidden(true)
+                                Image(systemName: symbol)
+                                    .foregroundStyle(status.tint)
+                                    .accessibilityHidden(true)
                             }
                         }
                         Text(segment.title)
+                            .foregroundStyle(foreground)
                     }
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(isRecognition ? status.tint : Color.gray)
-                    .frame(width: Self.segmentSize.width, height: Self.segmentSize.height)
+                    .frame(width: segmentWidth, height: Self.rowHeight)
                     .background(isRecognition && (status == .selecting || status == .result)
-                                ? Color.blue.opacity(0.10) : .clear)
+                                ? foreground.opacity(0.12) : .clear)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -408,23 +432,20 @@ struct ScreenshotSelectionActions: View {
                 .help(isRecognition ? status.title : segment.title)
                 .accessibilityHint(isRecognition ? status.title : "")
                 .overlay(alignment: isVertical ? .top : .leading) {
-                    if segment != Segment.allCases.first {
-                        Rectangle()
-                            .fill(.black.opacity(0.12))
-                            .frame(width: isVertical ? Self.segmentSize.width : 1,
-                                   height: isVertical ? 1 : Self.segmentSize.height)
-                            .allowsHitTesting(false)
-                    }
+                    Rectangle()
+                        .fill(foreground.opacity(0.2))
+                        .frame(width: isVertical ? segmentWidth : 1, height: isVertical ? 1 : Self.rowHeight)
+                        .allowsHitTesting(false)
                 }
             }
         }
-        .background(.white)
+        .background(.black)
         .clipShape(.rect(cornerRadius: 7))
         .overlay {
             RoundedRectangle(cornerRadius: 7)
-                .strokeBorder(.black.opacity(0.12))
+                .strokeBorder(foreground.opacity(0.18))
                 .allowsHitTesting(false)
         }
-        .environment(\.colorScheme, .light)
+        .environment(\.colorScheme, .dark)
     }
 }
