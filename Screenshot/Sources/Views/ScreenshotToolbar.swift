@@ -346,11 +346,11 @@ struct ScreenshotToolbar: View {
 
 struct ScreenshotSelectionActions: View {
     let state: ScreenshotEditorState
-    let dimensions: String
     let isVertical: Bool
 
     static let textColor = NSColor(srgbRed: 240.0 / 255, green: 240.0 / 255, blue: 240.0 / 255, alpha: 1)
     private static let rowHeight: CGFloat = 32
+    private static let gap: CGFloat = 6
 
     private enum Segment: CaseIterable, Identifiable {
         case textRecognition
@@ -375,30 +375,21 @@ struct ScreenshotSelectionActions: View {
         return max(94, ceil(widths.max() ?? 0) + 20)
     }()
 
-    private static func dimensionsWidth(_ dimensions: String) -> CGFloat {
-        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
-        return ceil((dimensions as NSString).size(withAttributes: [.font: font]).width) + 20
-    }
-
-    static func layoutSize(dimensions: String, isVertical: Bool) -> CGSize {
+    static func layoutSize(isVertical: Bool) -> CGSize {
         let count = CGFloat(Segment.allCases.count)
-        let dimensionsWidth = Self.dimensionsWidth(dimensions)
+        let spacing = (count - 1) * gap
         if isVertical {
-            return CGSize(width: max(segmentWidth, dimensionsWidth), height: rowHeight * (count + 1))
+            return CGSize(width: segmentWidth, height: rowHeight * count + spacing)
         }
-        return CGSize(width: dimensionsWidth + segmentWidth * count, height: rowHeight)
+        return CGSize(width: segmentWidth * count + spacing, height: rowHeight)
     }
 
     var body: some View {
-        let layout = isVertical ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
-        let dimensionsWidth = Self.dimensionsWidth(dimensions)
-        let segmentWidth = isVertical ? max(Self.segmentWidth, dimensionsWidth) : Self.segmentWidth
+        let layout = isVertical
+            ? AnyLayout(VStackLayout(spacing: Self.gap))
+            : AnyLayout(HStackLayout(spacing: Self.gap))
         let foreground = Color(nsColor: Self.textColor)
         layout {
-            Text(verbatim: dimensions)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(foreground)
-                .frame(width: isVertical ? segmentWidth : dimensionsWidth, height: Self.rowHeight)
             ForEach(Segment.allCases) { segment in
                 let isRecognition = segment == .textRecognition
                 let status = state.textRecognitionState
@@ -422,29 +413,22 @@ struct ScreenshotSelectionActions: View {
                             .foregroundStyle(foreground)
                     }
                     .font(.system(size: 13, weight: .medium))
-                    .frame(width: segmentWidth, height: Self.rowHeight)
+                    .frame(width: Self.segmentWidth, height: Self.rowHeight)
                     .background(isRecognition && (status == .selecting || status == .result)
-                                ? foreground.opacity(0.12) : .clear)
-                    .contentShape(Rectangle())
+                                ? Color(white: 0.24) : Color(white: 0.16),
+                                in: RoundedRectangle(cornerRadius: 7))
+                    .contentShape(RoundedRectangle(cornerRadius: 7))
                 }
                 .buttonStyle(.plain)
                 .disabled(!isRecognition || status == .recognizing)
                 .help(isRecognition ? status.title : segment.title)
                 .accessibilityHint(isRecognition ? status.title : "")
-                .overlay(alignment: isVertical ? .top : .leading) {
-                    Rectangle()
-                        .fill(foreground.opacity(0.2))
-                        .frame(width: isVertical ? segmentWidth : 1, height: isVertical ? 1 : Self.rowHeight)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 7)
+                        .strokeBorder(foreground.opacity(0.14))
                         .allowsHitTesting(false)
                 }
             }
-        }
-        .background(.black)
-        .clipShape(.rect(cornerRadius: 7))
-        .overlay {
-            RoundedRectangle(cornerRadius: 7)
-                .strokeBorder(foreground.opacity(0.18))
-                .allowsHitTesting(false)
         }
         .environment(\.colorScheme, .dark)
     }

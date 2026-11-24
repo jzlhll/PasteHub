@@ -73,8 +73,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        let icon = NSImage(systemSymbolName: "clipboard.fill", accessibilityDescription: "PasteHub")?
-            .withSymbolConfiguration(.init(pointSize: 16, weight: .semibold, scale: .medium))
+        let icon = NSImage(systemSymbolName: "list.clipboard", accessibilityDescription: "PasteHub")?
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .medium, scale: .medium))
         icon?.isTemplate = true
         statusItem.button?.image = icon
 

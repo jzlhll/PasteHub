@@ -1,12 +1,28 @@
 import CoreGraphics
 
 nonisolated enum ScreenshotOverlayLayout {
+    enum Alignment {
+        case label(topX: CGFloat)
+        case actions(verticalSize: CGSize)
+    }
+
     static func accessoryFrame(around selection: CGRect, within bounds: CGRect, size: CGSize,
-                               sideSize: CGSize? = nil, topX: CGFloat, avoiding obstacles: [CGRect])
+                               alignment: Alignment, avoiding obstacles: [CGRect])
         -> (frame: CGRect, isVertical: Bool)? {
         let visible = bounds.insetBy(dx: 5, dy: 5)
         let gap: CGFloat = 8
+        let topX: CGFloat
+        let sideSize: CGSize?
+        switch alignment {
+        case .label(let x):
+            topX = x
+            sideSize = nil
+        case .actions(let verticalSize):
+            topX = selection.midX - size.width / 2
+            sideSize = verticalSize
+        }
         let side = sideSize ?? size
+        let sideY = sideSize == nil ? selection.minY : selection.midY - side.height / 2
         let top = CGRect(x: visible.minX, y: visible.minY, width: visible.width,
                          height: selection.minY - gap - visible.minY)
         let left = CGRect(x: visible.minX, y: visible.minY, width: selection.minX - gap - visible.minX,
@@ -15,12 +31,21 @@ nonisolated enum ScreenshotOverlayLayout {
                            width: visible.maxX - selection.maxX - gap, height: visible.height)
         let bottom = CGRect(x: visible.minX, y: selection.maxY + gap, width: visible.width,
                             height: visible.maxY - selection.maxY - gap)
-        let placements = [
-            (top, size, CGPoint(x: topX, y: selection.minY - gap - size.height), false),
-            (left, side, CGPoint(x: selection.minX - gap - side.width, y: selection.minY), sideSize != nil),
-            (right, side, CGPoint(x: selection.maxX + gap, y: selection.minY), sideSize != nil),
-            (bottom, size, CGPoint(x: selection.minX, y: selection.maxY + gap), false),
-        ]
+        let above = (top, size, CGPoint(x: topX, y: selection.minY - gap - size.height), false)
+        let toLeft = (left, side, CGPoint(x: selection.minX - gap - side.width, y: sideY), sideSize != nil)
+        let toRight = (right, side, CGPoint(x: selection.maxX + gap, y: sideY), sideSize != nil)
+        let below = (bottom, size, CGPoint(x: selection.minX, y: selection.maxY + gap), false)
+        let placements = sideSize == nil ? [above, toLeft, toRight, below] : [above, toRight, toLeft, below]
+        if sideSize != nil {
+            // 优先检查各边的对齐位置，再尝试偏移，避免居中受阻时按钮跑到选区另一端。
+            for (area, controlSize, origin, isVertical) in placements
+                where area.size.width >= controlSize.width && area.size.height >= controlSize.height {
+                let frame = clampedFrame(in: area, size: controlSize, to: origin)
+                if obstacles.allSatisfy({ !frame.intersects($0.insetBy(dx: -gap, dy: -gap)) }) {
+                    return (frame, isVertical)
+                }
+            }
+        }
         for (area, controlSize, origin, isVertical) in placements {
             if let frame = closestFrame(in: area, size: controlSize, to: origin, avoiding: obstacles) {
                 return (frame, isVertical)
@@ -45,14 +70,16 @@ nonisolated enum ScreenshotOverlayLayout {
         guard area.size.width >= size.width, area.size.height >= size.height else { return nil }
         return availableAreas(in: area, avoiding: obstacles)
             .filter { $0.width >= size.width && $0.height >= size.height }
-            .map { available in
-                CGRect(x: min(max(available.minX, origin.x.rounded()), available.maxX - size.width),
-                       y: min(max(available.minY, origin.y.rounded()), available.maxY - size.height),
-                       width: size.width, height: size.height)
-            }
+            .map { clampedFrame(in: $0, size: size, to: origin) }
             .min {
                 hypot($0.minX - origin.x, $0.minY - origin.y) < hypot($1.minX - origin.x, $1.minY - origin.y)
             }
+    }
+
+    private static func clampedFrame(in area: CGRect, size: CGSize, to origin: CGPoint) -> CGRect {
+        CGRect(x: min(max(area.minX, origin.x.rounded()), area.maxX - size.width),
+               y: min(max(area.minY, origin.y.rounded()), area.maxY - size.height),
+               width: size.width, height: size.height)
     }
 
     static func availableAreas(in area: CGRect, avoiding obstacles: [CGRect]) -> [CGRect] {

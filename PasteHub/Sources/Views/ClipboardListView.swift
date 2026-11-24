@@ -541,6 +541,7 @@ struct ClipboardListView: View {
         .environment(\.clipboardPanelPresented, presentationState.isPresented)
         .onReceive(NotificationCenter.default.publisher(for: .panelDidHide)) { _ in
             ClipboardImagePreviewLoader.cancelAll()
+            isSnippetMode = false
             searchText = ""
             isSearchExpanded = false
             isSearchFocused = false

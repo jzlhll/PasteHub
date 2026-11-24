@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let icon = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "ASimpleShot")?
-            .withSymbolConfiguration(.init(pointSize: 17, weight: .bold, scale: .medium))
+            .withSymbolConfiguration(.init(pointSize: 16, weight: .medium, scale: .medium))
         icon?.isTemplate = true
         item.button?.image = icon
 
