@@ -32,10 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        let icon = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "ASimpleShot")?
-            .withSymbolConfiguration(.init(pointSize: 16, weight: .medium, scale: .medium))
-        icon?.isTemplate = true
-        item.button?.image = icon
+        item.button?.image = makeStatusItemIcon()
 
         let menu = NSMenu()
         menu.addItem(withTitle: String(localized: "截图 / 取色"), action: #selector(startScreenshot), keyEquivalent: "").target = self
@@ -44,6 +41,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: String(localized: "退出 ASimpleShot"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q").target = NSApp
         item.menu = menu
         statusItem = item
+    }
+
+    private func makeStatusItemIcon() -> NSImage {
+        let shade: CGFloat = 240.0 / 255
+        let color = NSColor(srgbRed: shade, green: shade, blue: shade, alpha: 1)
+        let camera = NSImage(systemSymbolName: "camera.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(paletteColors: [color]))
+        let icon = NSImage(size: NSSize(width: 20, height: 20), flipped: false) { _ in
+            let corners = NSBezierPath()
+            let armLength: CGFloat = 5
+            let edges: [(position: CGFloat, direction: CGFloat)] = [(2, 1), (18, -1)]
+            for (x, horizontalDirection) in edges {
+                for (y, verticalDirection) in edges {
+                    let end = NSPoint(x: x, y: y + verticalDirection * armLength)
+                    corners.move(to: NSPoint(x: x + horizontalDirection * armLength, y: y))
+                    corners.appendArc(from: NSPoint(x: x, y: y), to: end, radius: 3)
+                    corners.line(to: end)
+                }
+            }
+            corners.lineWidth = 2
+            corners.lineCapStyle = .round
+            color.setStroke()
+            corners.stroke()
+            camera?.draw(in: NSRect(x: 5, y: 6, width: 10, height: 8))
+            return true
+        }
+        icon.accessibilityDescription = "ASimpleShot"
+        return icon
     }
 
     @objc private func startScreenshot() {
